@@ -2,11 +2,11 @@
 Uses port 5081 (can be changed in page.tsx file in frontend folder)
 
 To test run the following commands
-cd backend
+cd backend,
 dotnet run
 
 (in a seperate terminal)
-cd frontend
+cd frontend,
 nmp run dev
 
 Then open the page  http://localhost:3000 in your browser
