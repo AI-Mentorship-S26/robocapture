@@ -38,6 +38,19 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
         } else {
             var message = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
             Console.WriteLine($"Received from Button: {message}");
+
+            string responseText = $"Thanks for sending a message";
+            byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(responseText);
+
+            await webSocket.SendAsync(
+            new ArraySegment<byte>(responseBuffer), 
+            System.Net.WebSockets.WebSocketMessageType.Text, 
+            true, 
+            CancellationToken.None);
+
+
+            Console.WriteLine("Sending message to frontend");
+
         }
     }
 }

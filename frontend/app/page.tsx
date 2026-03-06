@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 export default function Home() {
   const socketRef = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState("Connecting...");
+  // 1. Add state to hold the message from the backend
+  const [receivedMessage, setReceivedMessage] = useState<string>("");
 
   useEffect(() => {
     const socket = new WebSocket("ws://localhost:5081/ws");
@@ -12,6 +14,12 @@ export default function Home() {
     socket.onopen = () => {
       setStatus("Connected to .NET ");
       console.log("WebSocket Connected");
+    };
+
+    // 2. Add the onmessage handler to catch the .NET SendAsync response
+    socket.onmessage = (event) => {
+      console.log("Received from server:", event.data);
+      setReceivedMessage(event.data); // Update the UI with the backend's message
     };
 
     socket.onclose = () => {
@@ -26,7 +34,6 @@ export default function Home() {
 
     socketRef.current = socket;
 
-    // Cleanup connection when you close the tab or refresh
     return () => {
       socket.close();
     };
@@ -46,9 +53,16 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center p-24 font-sans bg-zinc-50 dark:bg-zinc-950">
       <div className="bg-white dark:bg-zinc-900 p-10 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-center">
         <h1 className="text-2xl font-bold mb-2 dark:text-white">WebSocket Test</h1>
-        <p className="text-zinc-500 dark:text-zinc-400 mb-8">
+        <p className="text-zinc-500 dark:text-zinc-400 mb-4">
           Status: <span className="font-mono font-bold text-blue-500">{status}</span>
         </p>
+
+        {/* 3. Display the received message in the UI */}
+        <div className="mb-8 p-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg min-h-[60px] flex items-center justify-center">
+          <p className="text-sm dark:text-zinc-300 italic">
+            {receivedMessage ? `Last Message: ${receivedMessage}` : "Waiting for backend response..."}
+          </p>
+        </div>
 
         <button
           onClick={handleClick}
