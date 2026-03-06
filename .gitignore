@@ -1,0 +1,8 @@
+# .NET build folders
+backend/bin/
+backend/obj/
+
+
+# OS files
+.DS_Store
+Thumbs.db
