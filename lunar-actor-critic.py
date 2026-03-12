@@ -38,7 +38,7 @@ env_viz = gym.make("LunarLander-v3", render_mode="human")
 
 ac_model = ActorCritic(8, 4)
 
-optimizer = optim.Adam(ac_model.parameters(), lr=1e-3)
+optimizer = optim.Adam(ac_model.parameters(), lr=1e-5)
     
 state, info = env_train.reset()
 state, info = env_viz.reset()
@@ -87,3 +87,4 @@ for episode in range(1000):
         optimizer.step()
 
         state = next_state
+
