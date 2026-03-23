@@ -4,8 +4,6 @@ import random
 
 env = gym.make("CliffWalking-v1")
 
-print("FROM MAIN")
-
 alpha = 0.1
 gamma = 0.9
 epsilon = 0.1
