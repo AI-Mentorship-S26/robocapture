@@ -33,6 +33,7 @@ for episode in range(episodes):
     done = False
 
     while not done:
+        
         next_state, reward, terminated, truncated, info = env.step(action)
         done = terminated or truncated
         next_action = chooseAction(next_state)
