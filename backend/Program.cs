@@ -39,17 +39,71 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
             var message = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
             Console.WriteLine($"Received from Button: {message}");
 
-            string responseText = $"Thanks for sending a message";
-            byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(responseText);
+            if (message == "sendImage") //Checking the type of request.
+            {
+                string imagePath = "samurai.png";
 
-            await webSocket.SendAsync(
-            new ArraySegment<byte>(responseBuffer), 
-            System.Net.WebSockets.WebSocketMessageType.Text, 
-            true, 
-            CancellationToken.None);
+                if (File.Exists(imagePath))
+                {
+                    byte[] imageBytes = await File.ReadAllBytesAsync(imagePath);
+                    string base64Image = Convert.ToBase64String(imageBytes);
 
+                    var payload = new
+                    {
+                        type = "image",
+                        format = "image/jpeg",
+                        data = base64Image
+                    };
 
-            Console.WriteLine("Sending message to frontend");
+                    string json = System.Text.Json.JsonSerializer.Serialize(payload);
+                    byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(json);
+
+                    await webSocket.SendAsync(
+                        new ArraySegment<byte>(responseBuffer),
+                        System.Net.WebSockets.WebSocketMessageType.Text,
+                        true,
+                        CancellationToken.None
+                    );
+
+                    Console.WriteLine("Sent image to frontend");
+                }
+                else
+                {
+                    var payload = new
+                    {
+                        type = "text",
+                        message = "test.jpg not found in backend folder"
+                    };
+
+                    string json = System.Text.Json.JsonSerializer.Serialize(payload);
+                    byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(json);
+
+                    await webSocket.SendAsync(
+                        new ArraySegment<byte>(responseBuffer),
+                        System.Net.WebSockets.WebSocketMessageType.Text,
+                        true,
+                        CancellationToken.None
+                    );
+                }
+            }
+            else
+            {
+                var payload = new
+                {
+                    type = "text",
+                    message = "A regular message from backend!"
+                };
+
+                string json = System.Text.Json.JsonSerializer.Serialize(payload);
+                byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(json);
+
+                await webSocket.SendAsync(
+                    new ArraySegment<byte>(responseBuffer),
+                    System.Net.WebSockets.WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None
+                );
+            }
 
         }
     }

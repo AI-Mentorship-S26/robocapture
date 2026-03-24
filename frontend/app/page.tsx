@@ -7,6 +7,8 @@ export default function Home() {
   const [status, setStatus] = useState("Connecting...");
   // 1. Add state to hold the message from the backend
   const [receivedMessage, setReceivedMessage] = useState<string>("");
+  // Add state to hold image from the backend
+  const [imageSrc, setImageSrc] = useState<string>("");
 
   useEffect(() => {
     const socket = new WebSocket("ws://localhost:5081/ws");
@@ -19,7 +21,18 @@ export default function Home() {
     // 2. Add the onmessage handler to catch the .NET SendAsync response
     socket.onmessage = (event) => {
       console.log("Received from server:", event.data);
-      setReceivedMessage(event.data); // Update the UI with the backend's message
+
+      const data = JSON.parse(event.data);
+
+      if (data.type === "text") {
+        setReceivedMessage(data.message); // Update the UI with the backend's message
+      }
+
+      if (data.type === "image") {
+        setReceivedMessage("Image received from backend");
+        setImageSrc(`data:${data.format};base64,${data.data}`);
+      }
+
     };
 
     socket.onclose = () => {
@@ -41,7 +54,7 @@ export default function Home() {
 
   const handleClick = () => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const message = "Hello from Next.js button!";
+      const message = "sendImage";
       socketRef.current.send(message);
       console.log("Sent:", message);
     } else {
@@ -63,6 +76,17 @@ export default function Home() {
             {receivedMessage ? `Last Message: ${receivedMessage}` : "Waiting for backend response..."}
           </p>
         </div>
+
+        {imageSrc && (
+          <div className="mb-6">
+            <p className="mb-2 text-sm dark:text-zinc-300">Received Image:</p>
+            <img
+              src={imageSrc}
+              alt="Received from backend"
+              className="max-w-full rounded-lg border border-zinc-300 dark:border-zinc-700"
+            />
+          </div>
+        )}
 
         <button
           onClick={handleClick}
