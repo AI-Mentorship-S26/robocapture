@@ -7,7 +7,7 @@ dotnet run
 
 (in a seperate terminal)
 cd frontend,
-nmp run dev
+npm run dev
 
 Then open the page  http://localhost:3000 in your browser
 press the button
