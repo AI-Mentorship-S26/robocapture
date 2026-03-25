@@ -39,13 +39,13 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
             var message = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
             Console.WriteLine($"Received from Button: {message}");
 
-            if (message == "sendImage") //Checking the type of request.
+            if (message == "captureImage") //Checking the type of request.
             {
-                string imagePath = "samurai.png";
+                var captureResult = RunPythonCapture();
 
-                if (File.Exists(imagePath))
+                if (captureResult.Success && File.Exists(captureResult.ImagePath))
                 {
-                    byte[] imageBytes = await File.ReadAllBytesAsync(imagePath);
+                    byte[] imageBytes = await File.ReadAllBytesAsync(captureResult.ImagePath);
                     string base64Image = Convert.ToBase64String(imageBytes);
 
                     var payload = new
@@ -65,14 +65,14 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
                         CancellationToken.None
                     );
 
-                    Console.WriteLine("Sent image to frontend");
+                    Console.WriteLine($"Sent captured image: {captureResult.ImagePath}");
                 }
                 else
                 {
                     var payload = new
                     {
                         type = "text",
-                        message = "test.jpg not found in backend folder"
+                        message = $"Capture failed: {captureResult.ErrorMessage}"
                     };
 
                     string json = System.Text.Json.JsonSerializer.Serialize(payload);
@@ -107,4 +107,64 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
 
         }
     }
+}
+
+CaptureResult RunPythonCapture()
+{
+    try
+    {
+        var process = new System.Diagnostics.Process();
+        process.StartInfo.FileName = "python3";
+        process.StartInfo.Arguments = "/home/mahd/Desktop/Robocapture/robocapture/picam/capture_once.py";
+        process.StartInfo.RedirectStandardOutput = true;
+        process.StartInfo.RedirectStandardError = true;
+        process.StartInfo.UseShellExecute = false;
+        process.StartInfo.CreateNoWindow = true;
+
+        Console.WriteLine("Starting Python capture script...");
+        process.Start();
+
+        string stdout = process.StandardOutput.ReadToEnd().Trim();
+        string stderr = process.StandardError.ReadToEnd().Trim();
+
+        process.WaitForExit();
+
+        Console.WriteLine($"Python exit code: {process.ExitCode}");
+        Console.WriteLine($"Python stdout: {stdout}");
+        Console.WriteLine($"Python stderr: {stderr}");
+
+        if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(stdout))
+        {
+            return new CaptureResult
+            {
+                Success = true,
+                ImagePath = stdout
+            };
+        }
+
+        return new CaptureResult
+        {
+            Success = false,
+            ErrorMessage = string.IsNullOrWhiteSpace(stderr)
+                ? $"Python failed. ExitCode={process.ExitCode}, Stdout='{stdout}'"
+                : stderr
+        };
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Exception while running Python: {ex.Message}");
+
+        return new CaptureResult
+        {
+            Success = false,
+            ErrorMessage = ex.Message
+        };
+    }
+}
+
+class CaptureResult
+{
+    public bool Success { get; set; }
+    public string ImagePath { get; set; } = "";
+    public string ErrorMessage { get; set; } = "";
 }

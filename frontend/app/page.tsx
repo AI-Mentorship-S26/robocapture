@@ -11,9 +11,9 @@ export default function Home() {
   const [imageSrc, setImageSrc] = useState<string>("");
 
   useEffect(() => {
-    const socket = new WebSocket("ws://localhost:5081/ws");
-
-    socket.onopen = () => {
+      //Hardcode way: const socket = new WebSocket("ws://172.20.10.12:5081/ws"); (replace ip with pi's current ip)
+      const socket = new WebSocket(process.env.NEXT_PUBLIC_WS_URL!);
+      socket.onopen = () => {
       setStatus("Connected to .NET ");
       console.log("WebSocket Connected");
     };
@@ -54,7 +54,7 @@ export default function Home() {
 
   const handleClick = () => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const message = "sendImage";
+      const message = "captureImage";
       socketRef.current.send(message);
       console.log("Sent:", message);
     } else {
@@ -92,7 +92,7 @@ export default function Home() {
           onClick={handleClick}
           className="bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-full font-medium transition-all hover:opacity-80 active:scale-95"
         >
-          Send Message to Backend
+          Capture Image
         </button>
       </div>
     </main>
