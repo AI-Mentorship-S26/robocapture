@@ -4,3 +4,6 @@ Pillow
 numpy
 supabase
 python-dotenv
+dotnet sdk
+node.js
+gymnasium
