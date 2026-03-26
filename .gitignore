@@ -12,6 +12,7 @@ venv/
 __pycache__/
 *.py[cod]
 *.egg-info/
+tempCodeRunnerFile.py
 
 # .NET build artifacts
 backend/bin/
