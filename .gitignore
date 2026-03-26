@@ -1,3 +1,9 @@
+# .NET build folders
+backend/bin/
+backend/obj/
+
+
+# OS files
 .env*
 
 # Python
