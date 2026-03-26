@@ -4,5 +4,32 @@ backend/obj/
 
 
 # OS files
+.env*
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# .NET build artifacts
+backend/bin/
+backend/obj/
+
+# Visual Studio workspace artifacts
+.vs/
+*.user
+*.suo
+
+# Frontend/Node build artifacts
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+
+# Generated image capture output
+picam/captures/
+
+# OS/editor noise
 .DS_Store
 Thumbs.db
