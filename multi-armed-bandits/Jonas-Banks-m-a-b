@@ -1,0 +1,54 @@
+#Jonas Banks
+#Multi Armed BAndits Implimitation for 5 Bandits
+#Uses epsilon greedy aproach
+#Bandits values are set =to be random on each run but you may test specifit values between 0.0 and 1.0
+
+import random
+
+bandits = [random.random(), random.random(), random.random(), random.random(), random.random()]
+
+estimate = [0, 0, 0, 0, 0]
+
+visit_count = [0, 0, 0, 0, 0]
+
+epsilon = 0.1
+
+total_reward = 0
+
+trials = 10000
+
+for i in range(trials):
+    
+    # select arm (epsilon greedy)
+    if random.random() < epsilon:
+        bandit_selected = random.randint(0, 4)
+    else:
+        bandit_selected = estimate.index(max(estimate))
+    
+    #pull the arm
+    if random.random() < bandits[bandit_selected]:
+        reward = 1
+    else:
+        reward = 0
+
+    #update total reward
+    total_reward += reward
+    
+    #update estimates
+    visit_count[bandit_selected] += 1
+
+    # new estimate = the curent estimate + the diffrence from the reward times the number of visits to that bandit
+    estimate[bandit_selected] = estimate[bandit_selected] + (1 / visit_count[bandit_selected]) * (reward - estimate[bandit_selected])
+
+diffrence = [a - b for a, b in zip(estimate, bandits)]
+
+print("\n")
+print(f"Total Reward after {trials} trials: {total_reward}")
+print("\n")
+print(f"Agent's final estimates for each arm:                           {[f'{x:.3f}' for x in estimate]}")
+print("\n")
+print(f"Actual win probabilities:                                       {[f'{x:.3f}' for x in bandits]}")
+print("\n")
+print(f"Diffrence between final estimates and actual win probabilities: {[f'{x:.3f}' for x in diffrence]}")
+print("Positive calues are over estimates, negative values are under estimates")
+print("\n")
