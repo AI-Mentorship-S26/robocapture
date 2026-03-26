@@ -1,0 +1,28 @@
+Multi-Armed Bandit Methods : 
+
+
+epsilon greedy :  most of the time you pick the best way but occasionally random exploration 
+is present making it the best method to detect when an interesting thing comes up.
+
+
+epsilon decay : best for stationary things as the rate at which it learns is very fast 
+at first but slows down exponentially
+
+
+Thompson sampling : uses probability distribution to decide the most optimized moves 
+bad for us since if the robot sees the same thing for a long period of time and suddenly sees 
+something new the probability chart barely changes ultimately not sending anything
+
+
+UCB (upper confidence bound) : It calculates a confidence interval for each arm and picks the 
+one with the highest potential ceiling(again bad for us since environment is not stationary).
+
+
+For this the code which I made I used a normal Epsilon-Greedy approach as I thought 
+it would best fit the project. I used a data set of 3 restaurants and their rating of 8,6 and 9 with 
+a mean deviation of the ratting being 1,2 and 1.5 respectively and simulated the data 50 times.
+This code chooses the best restaurants most of the time while occasionally letting you try new options.
+
+
+Also right now I have set the value of epsilon as 10% but as we want the robot to explore 
+more we should try and make the value lesser than 5%.

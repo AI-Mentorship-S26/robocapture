@@ -1,0 +1,3 @@
+[01:17:43.464] Server  ERROR   Error: ENOENT: no such file or directory, scandir 'C:\Users\jaide\OneDrive\Documents\GitHub\robocapture\frontend\app'
+[01:17:43.472] Server  ERROR   ⨯ "unhandledRejection:" Error: ENOENT: no such file or directory, scandir 'C:\Users\jaide\OneDrive\Documents\GitHub\robocapture\frontend\app'
+[01:17:43.477] Server  ERROR   ⨯ "unhandledRejection: " Error: ENOENT: no such file or directory, scandir 'C:\Users\jaide\OneDrive\Documents\GitHub\robocapture\frontend\app'
