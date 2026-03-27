@@ -1,4 +1,4 @@
-git from picamzero import Camera
+from picamzero import Camera
 from pathlib import Path
 from datetime import datetime
 import sys

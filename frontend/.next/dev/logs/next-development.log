@@ -1,4 +1,0 @@
-[00:00:00.991] Server  LOG     ✓ Ready in 701ms
-[00:00:05.283] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[00:00:08.175] Browser ERROR   WebSocket Error: {"isTrusted":true}
-[00:00:08.175] Browser LOG     WebSocket Disconnected
