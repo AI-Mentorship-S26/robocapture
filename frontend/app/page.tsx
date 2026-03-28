@@ -11,8 +11,7 @@ export default function Home() {
   const [imageSrc, setImageSrc] = useState<string>("");
 
   useEffect(() => {
-      //Hardcode way: const socket = new WebSocket("ws://172.20.10.12:5081/ws"); (replace ip with pi's current ip)
-      const socket = new WebSocket(process.env.NEXT_PUBLIC_WS_URL!);
+      const socket = new WebSocket("ws://localhost:5081/ws");
       socket.onopen = () => {
       setStatus("Connected to .NET ");
       console.log("WebSocket Connected");

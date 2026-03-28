@@ -1,3 +1,5 @@
+using System.Net.WebSockets;
+using System.Text.Json;
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Add CORS so Next.js (port 3000) can talk to .NET
@@ -8,6 +10,8 @@ builder.Services.AddCors(options => {
               .AllowAnyMethod();
     });
 });
+
+var piUrl = builder.Configuration["PiWebSocketUrl"] ?? "ws://172.20.10.12:8765";
 
 var app = builder.Build();
 
@@ -37,66 +41,23 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
             await webSocket.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
         } else {
             var message = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
-            Console.WriteLine($"Received from Button: {message}");
+            Console.WriteLine($"Received from frontend: {message}");
 
-            if (message == "captureImage") //Checking the type of request.
-            {
-                var captureResult = RunPythonCapture();
+            if (message == "captureImage") {
+                // Forward to Pi and get image back
+                var piResponse = await GetImageFromPi(piUrl);
 
-                if (captureResult.Success && File.Exists(captureResult.ImagePath))
-                {
-                    byte[] imageBytes = await File.ReadAllBytesAsync(captureResult.ImagePath);
-                    string base64Image = Convert.ToBase64String(imageBytes);
-
-                    var payload = new
-                    {
-                        type = "image",
-                        format = "image/jpeg",
-                        data = base64Image
-                    };
-
-                    string json = System.Text.Json.JsonSerializer.Serialize(payload);
-                    byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(json);
-
-                    await webSocket.SendAsync(
-                        new ArraySegment<byte>(responseBuffer),
-                        System.Net.WebSockets.WebSocketMessageType.Text,
-                        true,
-                        CancellationToken.None
-                    );
-
-                    Console.WriteLine($"Sent captured image: {captureResult.ImagePath}");
-                }
-                else
-                {
-                    var payload = new
-                    {
-                        type = "text",
-                        message = $"Capture failed: {captureResult.ErrorMessage}"
-                    };
-
-                    string json = System.Text.Json.JsonSerializer.Serialize(payload);
-                    byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(json);
-
-                    await webSocket.SendAsync(
-                        new ArraySegment<byte>(responseBuffer),
-                        System.Net.WebSockets.WebSocketMessageType.Text,
-                        true,
-                        CancellationToken.None
-                    );
-                }
-            }
-            else
-            {
-                var payload = new
-                {
-                    type = "text",
-                    message = "A regular message from backend!"
-                };
-
-                string json = System.Text.Json.JsonSerializer.Serialize(payload);
+                byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(piResponse);
+                await webSocket.SendAsync(
+                    new ArraySegment<byte>(responseBuffer),
+                    System.Net.WebSockets.WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None
+                );
+            } else {
+                var payload = new { type = "text", message = "A regular message from backend!" };
+                string json = JsonSerializer.Serialize(payload);
                 byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(json);
-
                 await webSocket.SendAsync(
                     new ArraySegment<byte>(responseBuffer),
                     System.Net.WebSockets.WebSocketMessageType.Text,
@@ -104,67 +65,39 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
                     CancellationToken.None
                 );
             }
-
         }
     }
 }
 
-CaptureResult RunPythonCapture()
-{
-    try
-    {
-        var process = new System.Diagnostics.Process();
-        process.StartInfo.FileName = "python3";
-        process.StartInfo.Arguments = "/home/mahd/Desktop/Robocapture/robocapture/picam/capture_once.py";
-        process.StartInfo.RedirectStandardOutput = true;
-        process.StartInfo.RedirectStandardError = true;
-        process.StartInfo.UseShellExecute = false;
-        process.StartInfo.CreateNoWindow = true;
+async Task<string> GetImageFromPi(string piUrl) {
+    //var piUri = new Uri("ws://172.20.10.12:8765"); // Use Pi's IP
+    var piUri = new Uri(piUrl);
+    using var piSocket = new ClientWebSocket();
+    
+    try {
+        await piSocket.ConnectAsync(piUri, CancellationToken.None);
+        Console.WriteLine("Connected to Pi WebSocket server!");
 
-        Console.WriteLine("Starting Python capture script...");
-        process.Start();
+        // Send capture command
+        byte[] commandBuffer = System.Text.Encoding.UTF8.GetBytes("captureImage");
+        await piSocket.SendAsync(
+            new ArraySegment<byte>(commandBuffer),
+            System.Net.WebSockets.WebSocketMessageType.Text,
+            true,
+            CancellationToken.None
+        );
 
-        string stdout = process.StandardOutput.ReadToEnd().Trim();
-        string stderr = process.StandardError.ReadToEnd().Trim();
+        // Receive image — use large buffer since images are big
+        var receiveBuffer = new byte[1024 * 1024 * 5]; // 5MB
+        var receiveResult = await piSocket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
+        string piResponse = System.Text.Encoding.UTF8.GetString(receiveBuffer, 0, receiveResult.Count);
 
-        process.WaitForExit();
+        await piSocket.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "Done", CancellationToken.None);
+        return piResponse;
 
-        Console.WriteLine($"Python exit code: {process.ExitCode}");
-        Console.WriteLine($"Python stdout: {stdout}");
-        Console.WriteLine($"Python stderr: {stderr}");
-
-        if (process.ExitCode == 0 && !string.IsNullOrWhiteSpace(stdout))
-        {
-            return new CaptureResult
-            {
-                Success = true,
-                ImagePath = stdout
-            };
-        }
-
-        return new CaptureResult
-        {
-            Success = false,
-            ErrorMessage = string.IsNullOrWhiteSpace(stderr)
-                ? $"Python failed. ExitCode={process.ExitCode}, Stdout='{stdout}'"
-                : stderr
-        };
+    } catch (Exception ex) {
+        Console.WriteLine($"Error connecting to Pi: {ex.Message}");
+        var error = new { type = "text", message = $"Pi connection failed: {ex.Message}" };
+        return JsonSerializer.Serialize(error);
     }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Exception while running Python: {ex.Message}");
-
-        return new CaptureResult
-        {
-            Success = false,
-            ErrorMessage = ex.Message
-        };
-    }
-}
-
-class CaptureResult
-{
-    public bool Success { get; set; }
-    public string ImagePath { get; set; } = "";
-    public string ErrorMessage { get; set; } = "";
 }
