@@ -1,29 +1,67 @@
-.env*
+# ========== ENVIRONMENT VARIABLES ==========
+.env
+.env.*
+!.env.example
 
-# Python
+# ========== PYTHON ==========
+# Virtual Environments
 .venv/
 venv/
+env/
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*$py.class
+# Distribution / packaging
 *.egg-info/
+.eggs/
+dist/
+build/
 
-# .NET build artifacts
+# ========== .NET / C# ==========
+# Build results
 backend/bin/
 backend/obj/
-
-# Visual Studio workspace artifacts
-.vs/
+[Bb]in/
+[Oo]bj/
+# User-specific files
 *.user
+*.userosscache
+*.sln.docstates
+# IDE / Editor folders
+.vs/
+.vscode/
 *.suo
+*.ide
+# Local config
+backend/appsettings.Development.json
 
-# Frontend/Node build artifacts
+# ========== FRONTEND / NEXT.JS ==========
+# dependencies
 frontend/node_modules/
+node_modules/
+# Next.js build output
 frontend/.next/
+.next/
 frontend/out/
+out/
+# build cache
+.turbo/
+# linting / testing logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.eslintcache
 
-# Generated image capture output
+# ========== APP SPECIFIC OUTPUTS ==========
+# Captured pictures/videos
 picam/captures/
+captures/
+tempCodeRunnerFile.python
 
-# OS/editor noise
+# ========== OS / EDITOR NOISE ==========
 .DS_Store
 Thumbs.db
+desktop.ini
+*.swp
