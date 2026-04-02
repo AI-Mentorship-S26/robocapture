@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, unlink, access } from 'fs/promises';
 import { join } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -25,12 +25,21 @@ export async function POST(request: Request) {
     tempFilePath = join(os.tmpdir(), `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`);
     await writeFile(tempFilePath, buffer);
 
-    // Provide the path to the Python environment and script
-    // Note: Assuming a standard project layout where Next.js is in /frontend and the Python is in the root
-    const pythonExecutable = join(process.cwd(), '../.venv/Scripts/python.exe');
-    const pythonScript = join(process.cwd(), '../image_to_vector.py');
+    // Resolve paths relative to the project root (one level up from frontend/)
+    const projectRoot = join(process.cwd(), '..');
+    const isWindows = process.platform === 'win32';
+    const pythonExecutable = join(projectRoot, '.venv', isWindows ? 'Scripts/python.exe' : 'bin/python');
+    const pythonScript = join(projectRoot, 'image_to_vector.py');
 
-    // Run the python script from the root workspace folder to ensure it finds the root .env
+    // Verify the venv exists before attempting to run
+    try {
+      await access(pythonExecutable);
+    } catch {
+      return NextResponse.json({
+        error: `Python venv not found at ${pythonExecutable}. Run "python -m venv .venv && .venv/${isWindows ? 'Scripts' : 'bin'}/pip install -r requirements.txt" from the project root.`
+      }, { status: 500 });
+    }
+
     const command = `"${pythonExecutable}" "${pythonScript}" "${tempFilePath}" "${userId}"`;
     
     const { stdout, stderr } = await execAsync(command, {
