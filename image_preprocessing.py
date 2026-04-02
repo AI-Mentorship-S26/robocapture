@@ -45,14 +45,17 @@ class ChangeDetector:
         self.difference_threshold = difference_threshold
         self.previous_frame = None
     
-    def detect_change(self, current_frame):
-        """Compare current frame with previous frame"""
-        if self.previous_frame is None:
+    def detect_change(self, current_frame, explicit_previous_frame=None):
+        """Compare current frame with previous frame (either internal state or explicit)"""
+        # Prioritize explicitly passed frame, fallback to internal state
+        prev_frame_to_use = explicit_previous_frame if explicit_previous_frame is not None else self.previous_frame
+
+        if prev_frame_to_use is None:
             self.previous_frame = current_frame.copy()
             return True, 100.0
         
         gray_current = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
-        gray_previous = cv2.cvtColor(self.previous_frame, cv2.COLOR_BGR2GRAY)
+        gray_previous = cv2.cvtColor(prev_frame_to_use, cv2.COLOR_BGR2GRAY)
         
         frame_diff = cv2.absdiff(gray_current, gray_previous)
         
@@ -61,11 +64,13 @@ class ChangeDetector:
         total_pixels = frame_diff.size
         change_percentage = (changed_pixels / total_pixels) * 100
         
+        # Always update internal state for the next potential call
         self.previous_frame = current_frame.copy()
         
         has_change = change_percentage > self.difference_threshold
         
         return has_change, change_percentage
+
 
 
 # ============================================================================
@@ -261,11 +266,12 @@ class ImagePreprocessingPipeline:
         )
         self.semantic_extractor = SemanticFeatureExtractor()
     
-    def process_image(self, image_path, verbose=True):
+    def process_image(self, current_image_path, previous_image_path=None, verbose=True):
         """Complete preprocessing pipeline for a single image"""
         results = {
             'timestamp': datetime.now().isoformat(),
-            'image_path': str(image_path),
+            'current_image_path': str(current_image_path),
+            'previous_image_path': str(previous_image_path) if previous_image_path else None,
             'stage_0': {},
             'stage_0_5': {},
             'stage_1': {},
@@ -280,21 +286,31 @@ class ImagePreprocessingPipeline:
                 print("STAGE 0: IMAGE CAPTURE AND RESIZING")
                 print("="*70)
             
-            original_img, resized_img = self.capture_processor.prepare_images(image_path)
+            original_img, resized_img = self.capture_processor.prepare_images(current_image_path)
             results['stage_0']['original_shape'] = original_img.shape
             results['stage_0']['resized_shape'] = resized_img.shape
             
             if verbose:
-                print(f"✓ Original image: {original_img.shape}")
-                print(f"✓ Resized image: {resized_img.shape}")
+                print(f"✓ Current image: {original_img.shape} -> {resized_img.shape}")
             
+            # Prepare explicit previous image if provided
+            previous_resized_img = None
+            if previous_image_path is not None:
+                _, previous_resized_img = self.capture_processor.prepare_images(previous_image_path)
+                if verbose:
+                    print(f"✓ Explicit previous image loaded: {previous_image_path}")
+
             # STAGE 0.5: Change Detection
             if verbose:
                 print("\n" + "="*70)
                 print("STAGE 0.5: CHANGE DETECTION")
                 print("="*70)
             
-            has_change, change_pct = self.change_detector.detect_change(resized_img)
+            has_change, change_pct = self.change_detector.detect_change(
+                resized_img, 
+                explicit_previous_frame=previous_resized_img
+            )
+            
             results['stage_0_5']['has_significant_change'] = has_change
             results['stage_0_5']['change_percentage'] = change_pct
             
@@ -315,7 +331,7 @@ class ImagePreprocessingPipeline:
                 print("STAGE 1: LOW-LEVEL IMAGE FILTERING")
                 print("="*70)
             
-            stage1_passes, stage1_results = self.low_level_filter.apply_filters(resized_img, verbose=True)
+            stage1_passes, stage1_results = self.low_level_filter.apply_filters(resized_img, verbose=verbose)
             results['stage_1'] = {
                 'passes': stage1_passes,
                 'brightness': stage1_results['brightness'],
@@ -342,7 +358,7 @@ class ImagePreprocessingPipeline:
                 print("STAGE 2: SEMANTIC FEATURE EXTRACTION")
                 print("="*70)
             
-            stage2_passes, stage2_results = self.semantic_extractor.extract_features(resized_img, verbose=True)
+            stage2_passes, stage2_results = self.semantic_extractor.extract_features(resized_img, verbose=verbose)
             results['stage_2'] = {
                 'passes': stage2_passes,
                 'embedding_shape': list(stage2_results.get('embedding_shape', [])),
