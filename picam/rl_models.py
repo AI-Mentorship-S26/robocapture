@@ -1,8 +1,19 @@
 import random
+from datetime import datetime
+from model_objects.sarsa_object import sarsa_object
+from model_objects.dqn_object import dqn_object
+from model_objects.ppo_object import ppo_object
+from model_objects.reinforce_object import reinforce_object
+from model_objects.aac_object import aac_object
+from model_objects.tiny_sac_object import tiny_sac_object
 
 """
 RL Models for RoboCapture
-Each function receives a state list of 1287 values:
+Each model has 2 functions:
+- run_X(image_id, state): takes image_id and state (1287 floats), returns 0 or 1
+- update_X(image_id, reward): takes image_id and reward/punishment, updates model
+
+State structure (1287 values):
 - [0] change_percentage
 - [1] brightness
 - [2] saturation
@@ -11,31 +22,71 @@ Each function receives a state list of 1287 values:
 - [5] mean_frequency
 - [6] embedding_magnitude
 - [7:] embedding (1280 floats from MobileNetV2)
-Each function must return 0 (don't send) or 1 (send).
 """
 
 #temporary placeholder - randomly decides 0 (don't send) or 1 (send)
-def run_random(state):
+def run_random(image_id, state):
     return random.randint(0, 1)
+def update_random(image_id, state):
+    pass
 
 
-# Replace raise NotImplementedError with your model's inference logic
-# Your model should take the embedding as input and return 0 or 1
+# SARSA
+def run_sarsa(image_id, state):
+    # TODO: implement inference logic
+    action = random.randint(0, 1)  # placeholder until implemented
+    sarsa_object.record(image_id, state, action)
+    return action
 
-def run_sarsa(state):
-    raise NotImplementedError("SARSA not implemented yet")
+def update_sarsa(image_id, reward):
+    sarsa_object.update(image_id, reward)
 
-def run_dqn(state):
-    raise NotImplementedError("DQN not implemented yet")
+# DQN
+def run_dqn(image_id, state):
+    # TODO: implement inference logic
+    action = random.randint(0, 1) #placeholder until implemented
+    dqn_object.record(image_id, state, action)
+    return action
 
-def run_ppo(state):
-    raise NotImplementedError("PPO not implemented yet")
+def update_dqn(image_id, reward):
+    dqn_object.update(image_id, reward)
 
-def run_reinforce(state):
-    raise NotImplementedError("REINFORCE not implemented yet")
+# PPO
+def run_ppo(image_id, state):
+    # TODO: implement inference logic
+    action = random.randint(0, 1) #placeholder until implemented
+    ppo_object.record(image_id, state, action) 
+    return action
 
-def run_aac(state):
-    raise NotImplementedError("AAC not implemented yet")
+def update_ppo(image_id, reward): 
+    ppo_object.update(image_id, reward)
 
-def run_tiny_sac(state):
-    raise NotImplementedError("Tiny SAC not implemented yet")
+# REINFORCE
+def run_reinforce(image_id, state):
+    # TODO: implement inference logic
+    action = random.randint(0, 1) #placeholder until implemented
+    reinforce_object.record(image_id, state, action)
+    return action
+
+def update_reinforce(image_id, reward):
+    reinforce_object.update(image_id, reward)
+
+# AAC
+def run_aac(image_id, state):
+    # TODO: implement inference logic
+    action = random.randint(0, 1) #placeholder until implemented
+    aac_object.record(image_id, state, action)
+    return action
+
+def update_aac(image_id, reward):
+    aac_object.update(image_id, reward)
+
+# Tiny SAC
+def run_tiny_sac(image_id, state):
+    # TODO: implement inference logic
+    action = random.randint(0, 1) #placeholder until implemented
+    tiny_sac_object.record(image_id, state, action)
+    return action
+
+def update_tiny_sac(image_id, reward):
+    tiny_sac_object.update(image_id, reward)
