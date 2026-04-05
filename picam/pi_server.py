@@ -50,9 +50,18 @@ async def handle_backend(websocket):
                 }))
                 continue
 
-            # Step 3: Pass CNN embedding into RL model
-            embedding = results['embedding']
-            decision = run_random(embedding)
+            # Step 3: Pass CNN embedding and other information as the state into RL model
+            state = [
+                results['stage_0_5']['change_percentage'],
+                results['stage_1']['brightness'],
+                results['stage_1']['saturation'],
+                results['stage_1']['sharpness'],
+                results['stage_1']['edge_count'],
+                results['stage_1']['mean_frequency'],
+                results['stage_2']['embedding_magnitude'],
+                *results['embedding']  # unpacks all 1280 numbers
+            ]
+            decision = run_random(state)
             print(f"RL decision: {decision}")
 
             if decision == 1:
