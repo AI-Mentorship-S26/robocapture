@@ -8,6 +8,7 @@ export default function Home() {
   const socketRef = useRef<WebSocket | null>(null);
   const [status, setStatus] = useState("Connecting...");
   const [receivedMessage, setReceivedMessage] = useState<string>("");
+  const [imageSrc, setImageSrc] = useState<string>("");
 
   // User state
   const [user, setUser] = useState<any>(null);
@@ -35,9 +36,17 @@ export default function Home() {
     };
 
     socket.onmessage = (event) => {
-      setReceivedMessage(event.data); 
-    };
-
+    const data = JSON.parse(event.data);
+    
+    if (data.type === "image") {
+      setReceivedMessage("Image received!");
+      setImageSrc(`data:${data.format};base64,${data.data}`);
+    } else if (data.type === "no_send") {
+      setReceivedMessage(data.message);
+    } else if (data.type === "error") {
+      setReceivedMessage(`Error: ${data.message}`);
+    }
+  };
     socket.onclose = () => {
       setStatus("Disconnected ");
     };
@@ -85,7 +94,7 @@ export default function Home() {
 
   const handleClick = () => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const message = "Hello from Next.js button!";
+      const message = "captureImage";
       socketRef.current.send(message);
     } else {
       alert("Socket is not open. Check if the .NET backend is running.");
@@ -141,6 +150,9 @@ export default function Home() {
                 {receivedMessage ? `Last Message: ${receivedMessage}` : "Waiting for backend response..."}
               </p>
             </div>
+            {imageSrc && (
+              <img src={imageSrc} alt="Captured from Pi" className="max-w-full rounded-lg mt-4 mb-4" />
+            )}
           </div>
 
           <button
