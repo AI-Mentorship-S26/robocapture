@@ -2,8 +2,16 @@ import random
 
 """
 RL Models for RoboCapture
-Each function receives the CNN embedding (list of 1280 floats) as state
-and must return either 0 (don't send) or 1 (send).
+Each function receives a state list of 1287 values:
+- [0] change_percentage
+- [1] brightness
+- [2] saturation
+- [3] sharpness
+- [4] edge_count
+- [5] mean_frequency
+- [6] embedding_magnitude
+- [7:] embedding (1280 floats from MobileNetV2)
+Each function must return 0 (don't send) or 1 (send).
 """
 
 #temporary placeholder - randomly decides 0 (don't send) or 1 (send)
