@@ -64,7 +64,7 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
                 byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(json);
                 await webSocket.SendAsync(
                     new ArraySegment<byte>(responseBuffer),
-                    System.Net.WebSoc   kets.WebSocketMessageType.Text,
+                    System.Net.WebSockets.WebSocketMessageType.Text,
                     true,
                     CancellationToken.None
                 );
