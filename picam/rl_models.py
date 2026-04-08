@@ -7,6 +7,9 @@ from model_objects.reinforce_object import reinforce_object
 from model_objects.aac_object import aac_object
 from model_objects.tiny_sac_object import tiny_sac_object
 
+import torch
+import numpy as np
+
 """
 RL Models for RoboCapture
 Each model has 2 functions:
@@ -73,8 +76,12 @@ def update_reinforce(image_id, reward):
 
 # AAC
 def run_aac(image_id, state):
-    # TODO: implement inference logic
-    action = random.randint(0, 1) #placeholder until implemented
+
+    state_tensor = torch.from_numpy(np.array(state)).float()
+    logits = aac_object.actor_model(state_tensor)
+    m = torch.distributions.Categorical(logits=logits)
+    action = m.sample().item()
+    
     aac_object.record(image_id, state, action)
     return action
 
