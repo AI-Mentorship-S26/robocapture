@@ -36,8 +36,7 @@ def update_random(image_id, state):
 
 # SARSA
 def run_sarsa(image_id, state):
-    # TODO: implement inference logic
-    action = random.randint(0, 1)  # placeholder until implemented
+    action = sarsa_object.choose_action(state)
     sarsa_object.record(image_id, state, action)
     return action
 
