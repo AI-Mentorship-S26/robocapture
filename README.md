@@ -1,14 +1,20 @@
 # robocapture
-Uses port 5081 (can be changed in page.tsx file in frontend folder)
 
-To test run the following commands
-cd backend,
+### Prerequisites
+- .NET SDK
+- Node.js
+
+
+## Steps to run the connection between Pi, Backend and Frontend:
+
+1. Run the Pi WebSocket server (run the command in the Pi's terminal):
+python3 /home/mahd/Desktop/Robocapture/robocapture/picam/pi_server.py
+
+2. Update this line in `appsettings.json` in the backend folder with your Pi's IP:
+"PiWebSocketUrl": "ws://YOUR_PI_IP:8765"
+
+3. Run the backend (on your system's terminal):
 dotnet run
 
-(in a seperate terminal)
-cd frontend,
-nmp run dev
-
-Then open the page  http://localhost:3000 in your browser
-press the button
-Go back to the backend terminal to see if the message was reviced
+4. Run the frontend (on your system's terminal):
+npm run dev

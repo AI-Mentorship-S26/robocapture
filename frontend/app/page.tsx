@@ -1,76 +1,55 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import ASMRBackground from "@/components/ui/asmr-background";
 
-export default function Home() {
-  const socketRef = useRef<WebSocket | null>(null);
-  const [status, setStatus] = useState("Connecting...");
-  // 1. Add state to hold the message from the backend
-  const [receivedMessage, setReceivedMessage] = useState<string>("");
-
-  useEffect(() => {
-    const socket = new WebSocket("ws://localhost:5081/ws");
-
-    socket.onopen = () => {
-      setStatus("Connected to .NET ");
-      console.log("WebSocket Connected");
-    };
-
-    // 2. Add the onmessage handler to catch the .NET SendAsync response
-    socket.onmessage = (event) => {
-      console.log("Received from server:", event.data);
-      setReceivedMessage(event.data); // Update the UI with the backend's message
-    };
-
-    socket.onclose = () => {
-      setStatus("Disconnected ");
-      console.log("WebSocket Disconnected");
-    };
-
-    socket.onerror = (error) => {
-      setStatus("Error Connecting ");
-      console.error("WebSocket Error:", error);
-    };
-
-    socketRef.current = socket;
-
-    return () => {
-      socket.close();
-    };
-  }, []);
-
-  const handleClick = () => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      const message = "Hello from Next.js button!";
-      socketRef.current.send(message);
-      console.log("Sent:", message);
-    } else {
-      alert("Socket is not open. Check if the .NET backend is running.");
-    }
-  };
-
+export default function LandingPage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-24 font-sans bg-zinc-50 dark:bg-zinc-950">
-      <div className="bg-white dark:bg-zinc-900 p-10 rounded-2xl shadow-lg border border-zinc-200 dark:border-zinc-800 text-center">
-        <h1 className="text-2xl font-bold mb-2 dark:text-white">WebSocket Test</h1>
-        <p className="text-zinc-500 dark:text-zinc-400 mb-4">
-          Status: <span className="font-mono font-bold text-blue-500">{status}</span>
-        </p>
-
-        {/* 3. Display the received message in the UI */}
-        <div className="mb-8 p-4 bg-zinc-100 dark:bg-zinc-800 rounded-lg min-h-[60px] flex items-center justify-center">
-          <p className="text-sm dark:text-zinc-300 italic">
-            {receivedMessage ? `Last Message: ${receivedMessage}` : "Waiting for backend response..."}
+    <ASMRBackground>
+      <div className="flex flex-col items-center gap-8 px-6">
+        {/* Logo / Title */}
+        <div className="text-center">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white/90">
+            Robo<span className="text-blue-400">Capture</span>
+          </h1>
+          <div className="w-full h-px bg-linear-to-r from-transparent via-white/10 to-transparent my-6" />
+          <p className="text-sm md:text-base text-white/30 tracking-[0.4em] uppercase font-light">
+            Intelligent Image Vectorization
           </p>
         </div>
 
-        <button
-          onClick={handleClick}
-          className="bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-full font-medium transition-all hover:opacity-80 active:scale-95"
+        {/* Login Button */}
+        <Link
+          href="/login"
+          className="group relative mt-4 inline-flex items-center justify-center"
         >
-          Send Message to Backend
-        </button>
+          <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-xl transition-all duration-300 group-hover:bg-blue-500/30 group-hover:blur-2xl" />
+          <span className="relative inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/4 px-8 py-3 text-sm font-medium tracking-widest text-white/70 uppercase backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:bg-white/8 hover:text-white/90">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="opacity-50 transition-opacity group-hover:opacity-80"
+            >
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <polyline points="10 17 15 12 10 7" />
+              <line x1="15" y1="12" x2="3" y2="12" />
+            </svg>
+            Sign In
+          </span>
+        </Link>
+
+        {/* Subtle footer */}
+        <p className="mt-12 text-[10px] text-white/10 tracking-widest uppercase">
+          Interactive Kinetic Environment
+        </p>
       </div>
-    </main>
+    </ASMRBackground>
   );
 }
