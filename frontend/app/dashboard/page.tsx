@@ -161,8 +161,7 @@ export default function DashboardPage() {
   const [activeModel, setActiveModel] = useState<RLModel>("dqn");
   const [stats, setStats]         = useState({ sent: 18, skipped: 34, epsilon: 0.22 });
   const [frameNumber, setFrameNumber] = useState(1247);
-  const [confidence]              = useState(0.84);
-  const [stateVector, setStateVector] = useState<StateVector>({
+const [stateVector, setStateVector] = useState<StateVector>({
     entropy: 0.72, edgeDensity: 0.55, novelty: 0.88, opticalFlow: 0.31,
   });
   const [history, setHistory]     = useState<HistoryEntry[]>(SEED_HISTORY);
@@ -172,6 +171,8 @@ export default function DashboardPage() {
   const [isVectorizing, setIsVectorizing] = useState(false);
   const [vectorStatus, setVectorStatus] = useState<{ success?: boolean; message?: string } | null>(null);
   const [receivedAgo, setReceivedAgo] = useState("waiting...");
+  const [wsMessage, setWsMessage] = useState<string>("");
+  const [capturedImageSrc, setCapturedImageSrc] = useState<string>("");
 
   // Auth
   useEffect(() => {
@@ -184,7 +185,23 @@ export default function DashboardPage() {
   useEffect(() => {
     const socket = new WebSocket("ws://localhost:5081/ws");
     socket.onopen    = () => setWsStatus("connected");
-    socket.onmessage = () => setReceivedAgo("0.1s ago");
+    socket.onmessage = (event) => {
+      setReceivedAgo("0.1s ago");
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "image") {
+          setWsMessage("Image received!");
+          setCapturedImageSrc(`data:${data.format};base64,${data.data}`);
+          setFrameNumber((n) => n + 1);
+        } else if (data.type === "no_send") {
+          setWsMessage(data.message);
+        } else if (data.type === "error") {
+          setWsMessage(`Error: ${data.message}`);
+        }
+      } catch {
+        // non-JSON message, ignore
+      }
+    };
     socket.onclose   = () => setWsStatus("disconnected");
     socket.onerror   = () => setWsStatus("error");
     socketRef.current = socket;
@@ -260,6 +277,15 @@ export default function DashboardPage() {
       setIsVectorizing(false);
     }
   }, [imageFile, user]);
+
+  const handleCaptureImage = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send("captureImage");
+      setWsMessage("Capture request sent…");
+    } else {
+      setWsMessage("Not connected — check if the backend is running.");
+    }
+  }, []);
 
   const wsColor = { connected: "bg-emerald-400", connecting: "bg-yellow-400 animate-pulse", disconnected: "bg-white/20", error: "bg-rose-400" }[wsStatus];
   const wsLabel = { connected: "Robot connected", connecting: "Connecting…", disconnected: "Disconnected", error: "Connection error" }[wsStatus];
@@ -375,54 +401,111 @@ export default function DashboardPage() {
               Session <span className="font-mono text-blue-400">#0042</span>
               <span className="text-white/20 mx-2">·</span>Mars Exploration A
             </h1>
-            <button
-              onClick={handleVectorize}
-              disabled={!imagePreview || isVectorizing}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs hover:bg-blue-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            >
-              {isVectorizing ? "Vectorizing…" : "Vectorize & Save"}
-            </button>
           </div>
 
-          {/* Current Frame */}
-          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-white/[0.05] flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-white/25 tracking-widest uppercase">Current Frame</span>
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[10px] font-semibold text-emerald-400 tracking-wider">LIVE</span>
+          {/* Current Frame — 2-column split */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            {/* Left — WebSocket / Capture */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm flex flex-col">
+              <div className="px-4 py-3 border-b border-white/[0.05] flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-white/25 tracking-widest uppercase">WebSocket</span>
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-white/[0.08] bg-white/[0.04]">
+                  <span className={`w-1.5 h-1.5 rounded-full ${wsColor}`} />
+                  <span className="text-[10px] text-white/50">{wsLabel}</span>
+                </div>
+              </div>
+              <div className="p-5 flex flex-col gap-4 flex-1">
+                {/* Status / message box */}
+                <div className="p-3 rounded-lg bg-[#161619] border border-white/[0.06] min-h-[48px] flex items-center justify-center">
+                  <p className="text-[11px] font-mono text-white/40 italic text-center">
+                    {wsMessage ? `Last message: ${wsMessage}` : "Waiting for backend response…"}
+                  </p>
+                </div>
+
+                {/* Captured image */}
+                <div className="w-full aspect-video rounded-lg overflow-hidden bg-[#161619] border border-white/[0.06] flex items-center justify-center">
+                  {capturedImageSrc ? (
+                    <img src={capturedImageSrc} alt="Captured from Pi" className="w-full h-full object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                        <MonitorIcon size={18} className="text-white/15" />
+                      </div>
+                      <p className="text-[11px] text-white/20">No capture yet</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Frame meta */}
+                <div className="flex items-center gap-3 flex-wrap justify-center">
+                  <span className="font-mono text-[11px] text-white/30">
+                    Frame <span className="text-white/50">#{frameNumber.toLocaleString()}</span>
+                    <span className="text-white/20 mx-2">·</span>640×480
+                  </span>
+                  <span className="text-[11px] text-white/25">Received {receivedAgo}</span>
+                </div>
+
+                {/* Capture button */}
+                <button
+                  onClick={handleCaptureImage}
+                  className="w-full py-2.5 rounded-full bg-white/90 dark:bg-white text-black text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
+                >
+                  Capture Image
+                </button>
               </div>
             </div>
-            <div className="p-5 flex flex-col items-center gap-4">
-              <div className="w-full max-w-sm aspect-video rounded-lg overflow-hidden bg-[#161619] border border-white/[0.06] flex items-center justify-center">
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Current frame" className="w-full h-full object-contain" />
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="w-12 h-12 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
-                      <MonitorIcon size={20} className="text-white/15" />
+
+            {/* Right — Image Vectorizer */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm flex flex-col">
+              <div className="px-4 py-3 border-b border-white/[0.05]">
+                <span className="text-[10px] font-semibold text-white/25 tracking-widest uppercase">Image Vectorizer</span>
+              </div>
+              <div className="p-5 flex flex-col gap-4 flex-1">
+                {user ? (
+                  <>
+                    <p className="text-[11px] text-white/30 text-center">
+                      Paste an image (Ctrl+V) anywhere to vectorize and send to Supabase.
+                    </p>
+
+                    {/* Paste preview */}
+                    <div className="flex-1 min-h-[160px] border-2 border-dashed border-white/[0.08] rounded-lg flex items-center justify-center overflow-hidden">
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="Pasted preview" className="max-h-[180px] object-contain rounded" />
+                      ) : (
+                        <p className="text-[11px] text-white/20">No image pasted yet</p>
+                      )}
                     </div>
-                    <p className="text-[11px] text-white/20">Paste an image (Ctrl+V)</p>
+
+                    {vectorStatus && (
+                      <p className={`text-[11px] font-mono text-center ${vectorStatus.success ? "text-emerald-400" : "text-rose-400"}`}>
+                        {vectorStatus.message}
+                      </p>
+                    )}
+
+                    <button
+                      onClick={handleVectorize}
+                      disabled={!imagePreview || isVectorizing}
+                      className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:bg-blue-600 text-white text-sm font-semibold active:scale-95 transition-all"
+                    >
+                      {isVectorizing ? "Vectorizing & Saving…" : "Vectorize Image"}
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center flex-1 gap-4">
+                    <p className="text-[13px] font-semibold text-white/60">Login required</p>
+                    <p className="text-[11px] text-white/30 text-center">You must be logged in to vectorize images.</p>
+                    <a
+                      href="/login"
+                      className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all text-center"
+                    >
+                      Go to Login
+                    </a>
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-4 flex-wrap justify-center">
-                <span className="font-mono text-[11px] text-white/30">
-                  Frame <span className="text-white/50">#{frameNumber.toLocaleString()}</span>
-                  <span className="text-white/20 mx-2">·</span>640×480
-                </span>
-                <span className="text-[11px] text-white/25">Received {receivedAgo}</span>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
-                  <span className="text-[10px] text-white/30">DQL confidence:</span>
-                  <span className="font-mono text-[10px] font-semibold text-blue-400">{confidence.toFixed(2)}</span>
-                </div>
-              </div>
-              {vectorStatus && (
-                <p className={`text-[11px] font-mono ${vectorStatus.success ? "text-emerald-400" : "text-rose-400"}`}>
-                  {vectorStatus.message}
-                </p>
-              )}
             </div>
+
           </div>
 
           {/* Action Bar */}
