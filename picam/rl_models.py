@@ -55,9 +55,12 @@ def update_dqn(image_id, reward):
 
 # PPO
 def run_ppo(image_id, state):
-    # TODO: implement inference logic
-    action = random.randint(0, 1) #placeholder until implemented
-    ppo_object.record(image_id, state, action) 
+    state_tensor = torch.from_numpy(np.array(state)).float()
+    logits = ppo_object.actor_model(state_tensor)
+    m = torch.distributions.Categorical(logits=logits)
+    action = m.sample().item()
+    
+    ppo_object.record(image_id, state, action)
     return action
 
 def update_ppo(image_id, reward): 
