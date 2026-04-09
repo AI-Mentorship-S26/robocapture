@@ -173,6 +173,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
   const [receivedAgo, setReceivedAgo] = useState("waiting...");
   const [wsMessage, setWsMessage] = useState<string>("");
   const [capturedImageSrc, setCapturedImageSrc] = useState<string>("");
+  const [currentImageId, setCurrentImageId] = useState<string>("");
 
   // Auth
   useEffect(() => {
@@ -192,6 +193,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
         if (data.type === "image") {
           setWsMessage("Image received!");
           setCapturedImageSrc(`data:${data.format};base64,${data.data}`);
+          setCurrentImageId(data.image_id); 
           setFrameNumber((n) => n + 1);
         } else if (data.type === "no_send") {
           setWsMessage(data.message);
@@ -253,7 +255,8 @@ const [stateVector, setStateVector] = useState<StateVector>({
         return [...prev.slice(-11), { step: `S${parseInt(last.step.slice(1)) + 1}`, reward: parseFloat(newVal.toFixed(2)) }];
       });
       if (socketRef.current?.readyState === WebSocket.OPEN) {
-        socketRef.current.send(action === "+R" ? "REWARD" : "PENALTY");
+        const feedback = action === "+R" ? "reward" : "punishment";
+        socketRef.current.send(`${feedback}:${currentImageId}`);
       }
     } else {
       setStats((s) => ({ ...s, skipped: s.skipped + 1 }));
@@ -514,21 +517,21 @@ const [stateVector, setStateVector] = useState<StateVector>({
             <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => sendAction("+R")}
-                disabled={!imagePreview}
+                disabled={!capturedImageSrc}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/15 hover:border-emerald-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 <span className="text-base font-bold leading-none">+</span>Reward
               </button>
               <button
                 onClick={() => sendAction("-P")}
-                disabled={!imagePreview}
+                disabled={!capturedImageSrc}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 text-sm font-semibold hover:bg-rose-500/15 hover:border-rose-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 <span className="text-base font-bold leading-none">−</span>Penalty
               </button>
               <button
                 onClick={() => sendAction("skip")}
-                disabled={!imagePreview}
+                disabled={!capturedImageSrc}
                 className="flex items-center justify-center py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/50 text-sm font-semibold hover:bg-white/[0.07] hover:text-white/70 hover:border-white/15 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 Skip
