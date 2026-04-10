@@ -66,8 +66,11 @@ def update_ppo(image_id, reward):
 
 # REINFORCE
 def run_reinforce(image_id, state):
-    # TODO: implement inference logic
-    action = random.randint(0, 1) #placeholder until implemented
+    state_tensor = torch.from_numpy(np.array(state)).float()
+    logits = reinforce_object.actor_model(state_tensor)
+    m = torch.distributions.Categorical(logits=logits)
+    action = m.sample().item()
+    
     reinforce_object.record(image_id, state, action)
     return action
 
