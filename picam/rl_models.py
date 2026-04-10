@@ -80,6 +80,10 @@ def update_reinforce(image_id, reward):
 def run_aac(image_id, state):
 
     state_tensor = torch.from_numpy(np.array(state)).float()
+
+    if aac_object.actor_model is None:
+        aac_object.record(image_id, state, 0)
+        
     logits = aac_object.actor_model(state_tensor)
     m = torch.distributions.Categorical(logits=logits)
     action = m.sample().item()
