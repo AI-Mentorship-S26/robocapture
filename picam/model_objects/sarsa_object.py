@@ -61,6 +61,13 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
         q_values[action] = current_q + self.learning_rate * (reward - current_q)
 
         print(f"Updating model with reward {reward} for image {image_id}")
+        # DEBUG
+        print(f"image_id: {image_id}")
+        print(f"action taken: {action}")
+        print(f"reward received: {reward}")
+        print(f"Q values before: {current_q:.4f}")
+        print(f"Q values after: {q_values[action]:.4f}")
+        print(f"Full Q table: {sarsa_object.q_table}")
 
 # Single instance — this is the model's brain
 sarsa_object = SARSAObject()  # rename per model

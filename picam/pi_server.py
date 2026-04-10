@@ -4,7 +4,7 @@ import subprocess
 import base64
 import json
 import os
-import sys
+import sysdi
 from pathlib import Path
 from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
@@ -22,7 +22,7 @@ from rl_models import (
 PI_PORT = 8765
 pipeline = ImagePreprocessingPipeline()
 previous_image_path = None
-current_model = "random"  # default model
+current_model = "sarsa"  # default model
 
 # Maps model name to its run and update functions
 MODEL_MAP = {
