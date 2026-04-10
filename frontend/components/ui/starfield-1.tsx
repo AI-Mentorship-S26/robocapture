@@ -129,10 +129,10 @@ export function Starfield({
         const n = [...s];
         n[7] = 1;
         n[5] = n[3]; n[6] = n[4];
-        n[0] += mouse.x >> 4;
+        n[0] += mouse.x >> 5;
         if (n[0] > sd.x << 1)  { n[0] -= sd.w << 1; n[7] = 0; }
         if (n[0] < -(sd.x << 1)) { n[0] += sd.w << 1; n[7] = 0; }
-        n[1] += mouse.y >> 4;
+        n[1] += mouse.y >> 5;
         if (n[1] > sd.y << 1)  { n[1] -= sd.h << 1; n[7] = 0; }
         if (n[1] < -(sd.y << 1)) { n[1] += sd.h << 1; n[7] = 0; }
         n[2] -= compSpeed;

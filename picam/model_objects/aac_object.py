@@ -41,7 +41,7 @@ class Critic(nn.Module):
         return self.critic(x)
 
 
-class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
+class AACObject:  # rename per model e.g. DQNObject, PPOObject etc.
     def __init__(self):
         self.history = {} 
         
@@ -101,4 +101,4 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
         print(f"Updating model with reward {reward} for image {image_id}")
 
 # Single instance — this is the model's brain
-sarsa_object = SARSAObject()  # rename per model
+aac_object = AACObject()  # rename per model
