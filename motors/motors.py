@@ -1,63 +1,63 @@
-import RPi.GPIO as GPIO
+import pigpio
 import time
 
-# --- PIN DEFINITIONS ---
-# Based on your images and notes:
-AIN1 = 17  # Left Motor Direction 1
-AIN2 = 27  # Left Motor Direction 2
-PWMA = 18  # Left Motor Speed (PWM)
+# --- PIN DEFINITIONS (BCM Numbering) ---
+# Left Motor
+AIN1, AIN2, PWMA = 17, 27, 18
+# Right Motor
+BIN1, BIN2, PWMB = 23, 24, 19
+# Standby Pin (Important!)
+STBY = 9
 
-BIN1 = 23  # Right Motor Direction 1 (Example pins, verify your wiring)
-BIN2 = 24  # Right Motor Direction 2
-PWMB = 19  # Right Motor Speed (PWM)
+# Initialize pigpio
+pi = pigpio.pi()
 
 # --- SETUP ---
-GPIO.setmode(GPIO.BCM)
-GPIO.setwarnings(False)
-
-# Set all pins as output
-pins = [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB]
+pins = [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY]
 for pin in pins:
-    GPIO.setup(pin, GPIO.OUT)
+    pi.set_mode(pin, pigpio.OUTPUT)
 
-# Initialize PWM at 1000Hz (1kHz)
-# This creates the "wave" signal you mentioned
-pwm_left = GPIO.PWM(PWMA, 1000)
-pwm_right = GPIO.PWM(PWMB, 1000)
+# Enable the motor driver
+pi.write(STBY, 1)
 
-# Start PWM at 0% speed
-pwm_left.start(0)
-pwm_right.start(0)
-
-def move_straight(speed):
+def set_motors(left_speed, right_speed):
     """
-    Moves both motors forward at the specified speed (0-100)
+    Controls speed and direction. 
+    Range: -255 (Full Reverse) to 255 (Full Forward)
     """
-    # LEFT MOTOR FORWARD logic
-    GPIO.output(AIN1, GPIO.HIGH)
-    GPIO.output(AIN2, GPIO.LOW)
-    
-    # RIGHT MOTOR FORWARD logic 
-    # (Using the logic from your notes)
-    GPIO.output(BIN1, GPIO.HIGH)
-    GPIO.output(BIN2, GPIO.LOW)
-    
-    # Set the Speed (Duty Cycle)
-    pwm_left.ChangeDutyCycle(speed)
-    pwm_right.ChangeDutyCycle(speed)
+    # Left Motor Logic
+    if left_speed >= 0:
+        pi.write(AIN1, 1); pi.write(AIN2, 0)
+        pi.set_PWM_dutycycle(PWMA, left_speed)
+    else:
+        pi.write(AIN1, 0); pi.write(AIN2, 1)
+        pi.set_PWM_dutycycle(PWMA, abs(left_speed))
 
+    # Right Motor Logic
+    if right_speed >= 0:
+        pi.write(BIN1, 1); pi.write(BIN2, 0)
+        pi.set_PWM_dutycycle(PWMB, right_speed)
+    else:
+        pi.write(BIN1, 0); pi.write(BIN2, 1)
+        pi.set_PWM_dutycycle(PWMB, abs(right_speed))
+
+# --- MAIN LOOP ---
 try:
-    # 60 is a good starting duty cycle (not too fast, not too slow)
-    print("Robot moving straight...")
-    move_straight(60)
-    
-    # Run for 5 seconds as a test
-    time.sleep(5)
+    print("Moving Forward...")
+    set_motors(200, 200)
+    time.sleep(2)
+
+    print("Spinning Right...")
+    set_motors(150, -150)
+    time.sleep(1)
+
+    print("Stopping...")
+    set_motors(0, 0)
 
 finally:
-    # ALWAYS stop the motors and clean up
-    # Otherwise they might keep spinning if the script crashes
-    print("Stopping motors...")
-    pwm_left.stop()
-    pwm_right.stop()
-    GPIO.cleanup()
+    # This block runs even if you press Ctrl+C or the code crashes
+    pi.write(STBY, 0)      # Disable driver
+    pi.set_PWM_dutycycle(PWMA, 0)
+    pi.set_PWM_dutycycle(PWMB, 0)
+    pi.stop()              # Disconnect from daemon
+    print("Robot safely disarmed.")
