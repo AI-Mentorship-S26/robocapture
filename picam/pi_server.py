@@ -4,7 +4,7 @@ import subprocess
 import base64
 import json
 import os
-import sysdi
+import sys
 from pathlib import Path
 from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
@@ -128,8 +128,10 @@ async def handle_backend(websocket):
 
 def run_capture():
     try:
+        SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+        CAPTURE_SCRIPT = os.path.join(SCRIPT_DIR, "capture_once.py")
         proc = subprocess.run(
-            ["python3", "/home/mahd/Desktop/Robocapture/robocapture/picam/capture_once.py"],
+            ["python3", CAPTURE_SCRIPT],
             capture_output=True, text=True
         )
         image_path = proc.stdout.strip()
