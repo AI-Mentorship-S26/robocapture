@@ -7,9 +7,9 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         
         self.state_size = 1287
         self.n_actions = 2
-        self.learning_rate = 0.0001
-        self.epsilon = 0.3  # start with high exploration
-        self.epsilon_decay = 0.995  # decay epsilon over time
+        self.learning_rate = 0.00001
+        self.epsilon = 0.5  # start with high exploration
+        self.epsilon_decay = 0.999  # decay epsilon over time
         self.epsilon_min = 0.05  # never go below 5% exploration
 
         # One weight vector per action — maps state to expected reward
