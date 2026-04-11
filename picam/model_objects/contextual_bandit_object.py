@@ -7,7 +7,7 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         
         self.state_size = 1287
         self.n_actions = 2
-        self.learning_rate = 0.001
+        self.learning_rate = 0.0001
         self.epsilon = 0.3  # start with high exploration
         self.epsilon_decay = 0.995  # decay epsilon over time
         self.epsilon_min = 0.05  # never go below 5% exploration
@@ -62,12 +62,17 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         # Update weights for the action that was taken
         self.weights[action] += self.learning_rate * error * state_array
         
+        # Also update the other action in the opposite direction
+        # e.g. if action 1 (send) is punished, action 0 (don't send) gets slightly boosted
+        # this prevents the model from over-generalizing in one direction
+        other_action = 1 - action
+        self.weights[other_action] -= self.learning_rate * error * state_array
+        
         # Decay epsilon — explore less over time as model gets more confident
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
         
         print(f"Updated weights for action {action} with reward {reward}")
         print(f"Prediction error: {error:.4f} | Epsilon: {self.epsilon:.4f}")
-
 
 # Single instance — this is the model's brain
 contextual_bandit_object = CONTEXTUALBANDITObject()  # rename per model
