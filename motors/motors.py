@@ -3,9 +3,9 @@ import time
 
 # --- PIN DEFINITIONS (BCM Numbering) ---
 # Left Motor
-AIN1, AIN2, PWMA = 17, 27, 18
+AIN1, AIN2, PWMA = 6, 5, 12
 # Right Motor
-BIN1, BIN2, PWMB = 23, 24, 19
+BIN1, BIN2, PWMB = 16, 26, 13
 # Standby Pin — NOTE: GPIO 9 is SPI0_MISO; if SPI is enabled, use a different pin (e.g. GPIO 25)
 STBY = 25
 
