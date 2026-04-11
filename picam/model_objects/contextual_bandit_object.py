@@ -7,7 +7,7 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         
         self.state_size = 1287
         self.n_actions = 2
-        self.learning_rate = 0.01
+        self.learning_rate = 0.001
         self.epsilon = 0.3  # start with high exploration
         self.epsilon_decay = 0.995  # decay epsilon over time
         self.epsilon_min = 0.05  # never go below 5% exploration
@@ -16,9 +16,16 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         # Shape: (n_actions, state_size) = (2, 1287)
         self.weights = np.zeros((self.n_actions, self.state_size))
 
+    def normalize_state(self, state):
+        state_array = np.array(state)
+        # Normalize to range [-1, 1] using mean and std
+        mean = np.mean(state_array)
+        std = np.std(state_array) + 1e-8  # add small value to avoid division by zero
+        return (state_array - mean) / std
+
     def predict(self, state):
         """Predict expected reward for each action given state"""
-        state_array = np.array(state)
+        state_array = self.normalize_state(state)
         # Dot product of weights with state = predicted reward for each action
         return self.weights @ state_array  # returns [predicted_reward_for_0, predicted_reward_for_1]
     
@@ -46,7 +53,7 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
             return
         
         state, action = self.history[image_id]
-        state_array = np.array(state)
+        state_array = self.normalize_state(state)
         
         # Calculate prediction error
         predicted_reward = self.weights[action] @ state_array
