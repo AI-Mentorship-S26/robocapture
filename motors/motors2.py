@@ -73,11 +73,11 @@ def go_backward(speed=200, duration=1.0):
     """Queue a backward move. Returns immediately — does not block."""
     command_queue.append((-speed, -speed, duration, f"Backward (speed={speed})"))
 
-def turn_left(speed=150, duration=1.0):
+def turn_left(speed=150, duration=0.9):
     """Queue a left turn (left motor back, right motor forward). Returns immediately."""
     command_queue.append((-speed, speed, duration, f"Turn Left (speed={speed})"))
 
-def turn_right(speed=150, duration=1.0):
+def turn_right(speed=150, duration=0.9):
     """Queue a right turn (left motor forward, right motor back). Returns immediately."""
     command_queue.append((speed, -speed, duration, f"Turn Right (speed={speed})"))
 
@@ -89,9 +89,8 @@ def stop(duration=0.5):
 # --- Build your movement plan here ---
 # These calls return instantly — they only fill the queue.
 go_forward(speed=200, duration=2.0)
-turn_right(speed=150, duration=1.0)
-go_forward(speed=200, duration=1.5)
-turn_left(speed=150, duration=1.0)
+turn_right(speed=150, duration=0.9)
+go_forward(speed=200, duration=2.0)
 stop()
 
 # --- STATE ---
