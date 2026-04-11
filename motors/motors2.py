@@ -1,5 +1,6 @@
 import pigpio
 import time
+import random
 from collections import deque
 
 # --- PIN DEFINITIONS ---
@@ -32,10 +33,6 @@ print(f"STBY (GPIO {STBY}) set HIGH — motor driver enabled.")
 
 # --- LOW-LEVEL MOTOR CONTROL ---
 def set_motors(left_speed, right_speed):
-    """
-    Raw motor control. Range: -255 (full reverse) to 255 (full forward).
-    Called only by the main loop — never call directly from movement functions.
-    """
     left_speed  = max(-255, min(255, left_speed))
     right_speed = max(-255, min(255, right_speed))
 
@@ -56,68 +53,68 @@ def set_motors(left_speed, right_speed):
     print(f"  Motors set → Left: {left_speed}, Right: {right_speed}")
 
 
-# ---------------------------------------------------------------------------
-# COMMAND QUEUE
-# Movement functions don't block — they just push a command onto the queue.
-# The main loop pops and executes them one at a time using elapsed-time checks.
-# Format: (left_speed, right_speed, duration, label)
-# ---------------------------------------------------------------------------
+# --- COMMAND QUEUE ---
 command_queue = deque()
 
 # --- MOVEMENT FUNCTIONS ---
-def go_forward(speed=200, duration=1.0):
-    """Queue a forward move. Returns immediately — does not block."""
+def go_forward(speed=200, duration=0.5):   # duration halved from 1.0
     command_queue.append((speed, speed, duration, f"Forward (speed={speed})"))
 
-def go_backward(speed=200, duration=1.0):
-    """Queue a backward move. Returns immediately — does not block."""
+def go_backward(speed=200, duration=0.5):
     command_queue.append((-speed, -speed, duration, f"Backward (speed={speed})"))
 
-def turn_left(speed=150, duration=1.0):
-    """Queue a left turn (left motor back, right motor forward). Returns immediately."""
+def turn_left(speed=150, duration=0.9):    # 0.9 fixed as tested
     command_queue.append((-speed, speed, duration, f"Turn Left (speed={speed})"))
 
-def turn_right(speed=150, duration=1.0):
-    """Queue a right turn (left motor forward, right motor back). Returns immediately."""
+def turn_right(speed=150, duration=0.9):   # 0.9 fixed as tested
     command_queue.append((speed, -speed, duration, f"Turn Right (speed={speed})"))
 
 def stop(duration=0.5):
-    """Queue a full stop, held for duration. Returns immediately."""
     command_queue.append((0, 0, duration, "Stop"))
 
 
-# --- Build your movement plan here ---
-# These calls return instantly — they only fill the queue.
-go_forward(speed=200, duration=2.0)
-turn_right(speed=150, duration=1.0)
-go_forward(speed=200, duration=1.5)
-turn_left(speed=150, duration=1.0)
+# --- RANDOM WALK ---
+def random_walk(steps):
+    """
+    Queues `steps` iterations of: go_forward then a random turn (left or right).
+    Turn duration is fixed at 0.9 (tested). Forward duration uses the default (0.5).
+    Change the `steps` argument at the call site below — nothing is hard-coded here.
+    """
+    turns = [turn_left, turn_right]
+    for _ in range(steps):
+        go_forward()
+        random.choice(turns)()
+
+
+# --- Set your desired number of random steps here ---
+NUM_STEPS = 10
+
+random_walk(NUM_STEPS)
 stop()
 
+
 # --- STATE ---
-current_cmd = None   # (left, right, duration, label) currently executing
-cmd_start   = None   # monotonic timestamp when current command started
+current_cmd = None
+cmd_start   = None
 
 
 # --- MAIN LOOP ---
 try:
-    print("Starting non-blocking motor control...")
+    print(f"Starting random walk: {NUM_STEPS} steps...")
 
     while True:
         now = time.monotonic()
 
-        # --- Command executor ---
         if current_cmd is None:
-            if command_queue:                       # grab the next command
+            if command_queue:
                 current_cmd = command_queue.popleft()
                 left, right, duration, label = current_cmd
                 print(label + "...")
                 set_motors(left, right)
                 cmd_start = now
-            # else: queue empty, motors hold their last state
         else:
-            left, right, duration, label = current_cmd
-            if now - cmd_start >= duration:         # command duration elapsed
+            _, _, duration, _ = current_cmd
+            if now - cmd_start >= duration:
                 current_cmd = None
                 cmd_start   = None
 
