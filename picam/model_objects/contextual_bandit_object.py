@@ -18,10 +18,17 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
 
     def normalize_state(self, state):
         state_array = np.array(state)
-        # Normalize to range [-1, 1] using mean and std
-        mean = np.mean(state_array)
-        std = np.std(state_array) + 1e-8  # add small value to avoid division by zero
-        return (state_array - mean) / std
+        # Normalize only the first 7 features (metrics) separately from embedding
+        metrics = state_array[:7]
+        embedding = state_array[7:]
+        
+        # Normalize metrics
+        metrics_norm = (metrics - np.mean(metrics)) / (np.std(metrics) + 1e-8)
+        
+        # Normalize embedding separately
+        embedding_norm = (embedding - np.mean(embedding)) / (np.std(embedding) + 1e-8)
+        
+        return np.concatenate([metrics_norm, embedding_norm])
 
     def predict(self, state):
         """Predict expected reward for each action given state"""
@@ -62,11 +69,6 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         # Update weights for the action that was taken
         self.weights[action] += self.learning_rate * error * state_array
         
-        # Also update the other action in the opposite direction
-        # e.g. if action 1 (send) is punished, action 0 (don't send) gets slightly boosted
-        # this prevents the model from over-generalizing in one direction
-        other_action = 1 - action
-        self.weights[other_action] -= self.learning_rate * error * state_array
         
         # Decay epsilon — explore less over time as model gets more confident
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
