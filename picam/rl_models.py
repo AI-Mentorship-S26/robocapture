@@ -45,8 +45,7 @@ def update_sarsa(image_id, reward):
 
 # DQN
 def run_dqn(image_id, state):
-    # TODO: implement inference logic
-    action = random.randint(0, 1) #placeholder until implemented
+    action = dqn_object.choose_action(state)
     dqn_object.record(image_id, state, action)
     return action
 
