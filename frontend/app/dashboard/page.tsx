@@ -13,7 +13,7 @@ import {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type NavView = "live" | "gallery" | "rewards" | "logs";
-type RLModel = "dqn" | "mab";
+type RLModel = "random" | "contextual_bandit" | "sarsa" | "dqn" | "ppo" | "reinforce" | "aac" | "tiny_sac";
 type FrameAction = "+R" | "-P" | null;
 type WsStatus = "connecting" | "connected" | "disconnected" | "error";
 
@@ -158,7 +158,7 @@ export default function DashboardPage() {
   const [user, setUser]           = useState<{ email?: string; id?: string } | null>(null);
   const [wsStatus, setWsStatus]   = useState<WsStatus>("connecting");
   const [activeView, setActiveView] = useState<NavView>("live");
-  const [activeModel, setActiveModel] = useState<RLModel>("dqn");
+  const [activeModel, setActiveModel] = useState<RLModel>("random");
   const [stats, setStats]         = useState({ sent: 18, skipped: 34, epsilon: 0.22 });
   const [frameNumber, setFrameNumber] = useState(1247);
 const [stateVector, setStateVector] = useState<StateVector>({
@@ -173,6 +173,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
   const [receivedAgo, setReceivedAgo] = useState("waiting...");
   const [wsMessage, setWsMessage] = useState<string>("");
   const [capturedImageSrc, setCapturedImageSrc] = useState<string>("");
+  const [actionTaken, setActionTaken] = useState(false);
   const [currentImageId, setCurrentImageId] = useState<string>("");
 
   // Auth
@@ -193,8 +194,9 @@ const [stateVector, setStateVector] = useState<StateVector>({
         if (data.type === "image") {
           setWsMessage("Image received!");
           setCapturedImageSrc(`data:${data.format};base64,${data.data}`);
-          setCurrentImageId(data.image_id); 
+          setCurrentImageId(data.image_id);
           setFrameNumber((n) => n + 1);
+          setActionTaken(false);
         } else if (data.type === "no_send") {
           setWsMessage(data.message);
         } else if (data.type === "error") {
@@ -239,7 +241,8 @@ const [stateVector, setStateVector] = useState<StateVector>({
   }, []);
 
   const sendAction = useCallback((action: "+R" | "-P" | "skip") => {
-    if (!imagePreview) return;
+    if (!imagePreview || actionTaken) return;
+    setActionTaken(true);
     const historyAction: FrameAction = action === "skip" ? null : action;
     const status = action === "skip" ? "skipped" : "sent";
     const now = new Date();
@@ -257,11 +260,12 @@ const [stateVector, setStateVector] = useState<StateVector>({
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         const feedback = action === "+R" ? "reward" : "punishment";
         socketRef.current.send(`${feedback}:${currentImageId}`);
+        console.log(`Sent: ${feedback}:${currentImageId}`);
       }
     } else {
       setStats((s) => ({ ...s, skipped: s.skipped + 1 }));
     }
-  }, [imagePreview]);
+  }, [imagePreview, actionTaken]);
 
   const handleVectorize = useCallback(async () => {
     if (!imageFile) return;
@@ -314,6 +318,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
           <StatPill label="Sent"    value={stats.sent} />
           <StatPill label="Skipped" value={stats.skipped} />
           <StatPill label="ε ="     value={stats.epsilon.toFixed(2)} />
+          <StatPill label="Model" value={activeModel} />
         </div>
 
         <div className="flex items-center gap-3">
@@ -367,12 +372,24 @@ const [stateVector, setStateVector] = useState<StateVector>({
             <p className="text-[9px] font-semibold text-white/20 tracking-[0.2em] uppercase px-2 mb-2">RL Model</p>
             <div className="flex flex-col gap-1.5">
               {([
-                { id: "dqn", name: "Deep Q-Network",     sub: "DQL · stateful" },
-                { id: "mab", name: "Multi-Armed Bandit",  sub: "MAB · lightweight" },
+                { id: "random",    name: "Random",                sub: "Baseline · no learning" },
+                { id: "contextual_bandit", name: "Contextual Bandit", sub: "CB · sample efficient" },
+                { id: "sarsa",     name: "Deep SARSA",             sub: "SARSA · on-policy" },
+                { id: "dqn",       name: "Deep Q-Network",         sub: "DQN · off-policy" },
+                { id: "ppo",       name: "Proximal Policy Opt.",   sub: "PPO · policy gradient" },
+                { id: "reinforce", name: "REINFORCE",              sub: "PG · Monte Carlo" },
+                { id: "aac",       name: "Advantage Actor-Critic", sub: "AAC · actor-critic" },
+                { id: "tiny_sac",  name: "Tiny SAC",               sub: "SAC · entropy-based" },
               ] as { id: RLModel; name: string; sub: string }[]).map(({ id, name, sub }) => (
                 <button
                   key={id}
-                  onClick={() => setActiveModel(id)}
+                  onClick={() => {
+                    setActiveModel(id)
+                    if (socketRef.current?.readyState === WebSocket.OPEN) {
+                      socketRef.current.send(`setModel:${id}`);
+                      console.log(`Sent: setModel:${id}`);
+                    }
+                  }}
                   className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all duration-150 cursor-pointer text-left w-full border ${
                     activeModel === id
                       ? "bg-blue-500/10 border-blue-500/25 text-blue-400"
@@ -517,21 +534,21 @@ const [stateVector, setStateVector] = useState<StateVector>({
             <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => sendAction("+R")}
-                disabled={!capturedImageSrc}
+                disabled={!capturedImageSrc || actionTaken}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/15 hover:border-emerald-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 <span className="text-base font-bold leading-none">+</span>Reward
               </button>
               <button
                 onClick={() => sendAction("-P")}
-                disabled={!capturedImageSrc}
+                disabled={!capturedImageSrc || actionTaken}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 text-sm font-semibold hover:bg-rose-500/15 hover:border-rose-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 <span className="text-base font-bold leading-none">−</span>Penalty
               </button>
               <button
                 onClick={() => sendAction("skip")}
-                disabled={!capturedImageSrc}
+                disabled={!capturedImageSrc || actionTaken}
                 className="flex items-center justify-center py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/50 text-sm font-semibold hover:bg-white/[0.07] hover:text-white/70 hover:border-white/15 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 Skip

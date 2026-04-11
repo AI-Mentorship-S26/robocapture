@@ -4,13 +4,14 @@ import subprocess
 import base64
 import json
 import os
-import sys
+import sysdi
 from pathlib import Path
 from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
 from image_preprocessing import ImagePreprocessingPipeline
 from rl_models import (
     run_random, update_random,
+    run_contextual_bandit, update_contextual_bandit,
     run_sarsa, update_sarsa,
     run_dqn, update_dqn,
     run_ppo, update_ppo,
@@ -22,11 +23,12 @@ from rl_models import (
 PI_PORT = 8765
 pipeline = ImagePreprocessingPipeline()
 previous_image_path = None
-current_model = "random"  # default model
+current_model = "sarsa"  # default model
 
 # Maps model name to its run and update functions
 MODEL_MAP = {
     "random":   (run_random,    update_random),
+    "contextual_bandit": (run_contextual_bandit, update_contextual_bandit),
     "sarsa":    (run_sarsa,     update_sarsa),
     "dqn":      (run_dqn,       update_dqn),
     "ppo":      (run_ppo,       update_ppo),
