@@ -40,6 +40,10 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         """Epsilon-greedy action selection"""
         # Always send if never seen anything like this before
         predictions = self.predict(state)
+
+        print(f"Predictions: {predictions}")  # add this
+        print(f"Epsilon: {self.epsilon}")     # add this
+
         if np.all(predictions == 0.0):
             return 1
         
