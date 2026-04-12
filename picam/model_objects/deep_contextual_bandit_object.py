@@ -83,25 +83,28 @@ class DeepContextualBanditObject:
         state_array = self.normalize_state(state)
         state_tensor = torch.FloatTensor(state_array).unsqueeze(0)
 
-        # Get current Q value predictions
-        q_values = self.network(state_tensor)
-
-        # Build target using detached q_values, then update the action taken
-        target = q_values.detach().clone()
-        target[0][action] = float(reward)
-
-        # Backpropagate — q_values still has grad, target is detached
+        # Forward pass with gradients enabled
+        self.network.train()
         self.optimizer.zero_grad()
-        loss = self.loss_fn(q_values, target)
+        
+        q_values = self.network(state_tensor)
+        
+        # Only compute loss for the action that was taken
+        predicted = q_values[0][action]
+        target = torch.tensor(float(reward))
+        
+        # Simple MSE loss on just the action taken
+        loss = (predicted - target) ** 2
         loss.backward()
         self.optimizer.step()
+        
+        self.network.eval()
 
         # Decay epsilon
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
         print(f"Updated network for action {action} with reward {reward}")
         print(f"Loss: {loss.item():.4f} | Epsilon: {self.epsilon:.4f}")
-
-
+        
 # Single instance
 deep_contextual_bandit_object = DeepContextualBanditObject()
