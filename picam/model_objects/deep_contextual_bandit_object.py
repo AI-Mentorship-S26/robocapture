@@ -69,10 +69,10 @@ class DeepContextualBanditObject:
 
         if x < self.epsilon:
             chosenValue = np.random.randint(0, 2)
-            print(f"ok we are doing random, value is {chosenValue}")
+            print(f"ok we are doing random (explore), value is {chosenValue}")
         else:
             chosenValue = int(np.argmax(q_values))
-            print(f"ok we are doing random, value is {chosenValue}")
+            print(f"ok we are doing exploit, value is {chosenValue}")
         return chosenValue
 
     def record(self, image_id, state, action):
