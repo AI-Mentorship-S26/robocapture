@@ -5,26 +5,83 @@ import torch.nn.functional as F
 import numpy as np
 from datetime import datetime
 
-class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
+from .persistence import load_torch, model_file, save_torch
+
+STATE_SIZE = 1287
+
+
+class Actor(nn.Module):
+    def __init__(self, n_inputs, n_actions):
+        super(Actor, self).__init__()
+
+        self.actor = nn.Sequential(
+            nn.Linear(n_inputs, 64),
+            nn.ReLU(),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Linear(64, n_actions),
+        )
+
+    def forward(self, x):
+        return self.actor(x)
+
+
+class ReinforceObject:
     def __init__(self):
         self.history = {}  # {image_id: (state, action, log_prob)}
         self.actor_model = None
         self.optimizer = None
         self.gamma = 0.99  # discount factor
         self.learning_rate = 1e-4
+        self.input_size = None
+        self.checkpoint_path = model_file("reinforce", ".pt")
+
+        self.ensure_initialized(STATE_SIZE)
+        self.load()
+
+    def ensure_initialized(self, n_inputs):
+        if self.actor_model is not None:
+            return
+
+        self.input_size = n_inputs
+        self.actor_model = Actor(n_inputs, n_actions=2)
+        self.optimizer = optim.Adam(self.actor_model.parameters(), lr=self.learning_rate)
     
     def record(self, image_id, state, action):
         """Called by run_reinforce() from pi_server to store state/action for this image"""
-        if self.actor_model is None:
-            n_inputs = len(state)
-            self.actor_model = Actor(n_inputs, n_actions=2)
-            self.optimizer = optim.Adam(self.actor_model.parameters(), lr=self.learning_rate)
-        
+        self.ensure_initialized(len(state))
+
         # Store the action and state for later update
         self.history[image_id] = {
             'state': state,
             'action': action
         }
+
+    def save(self):
+        if self.actor_model is None:
+            return
+
+        save_torch(
+            self.checkpoint_path,
+            {
+                "input_size": self.input_size,
+                "learning_rate": self.learning_rate,
+                "gamma": self.gamma,
+                "actor_state_dict": self.actor_model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+            },
+        )
+
+    def load(self):
+        checkpoint = load_torch(self.checkpoint_path)
+        if checkpoint is None:
+            return
+
+        self.learning_rate = checkpoint.get("learning_rate", self.learning_rate)
+        self.gamma = checkpoint.get("gamma", self.gamma)
+        self.ensure_initialized(checkpoint["input_size"])
+        self.actor_model.load_state_dict(checkpoint["actor_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     
     def update(self, image_id, reward):
         """Called by update_reinforce() when reward/punishment comes back from frontend"""
@@ -54,9 +111,10 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
         
         # Clean up history
         del self.history[image_id]
+        self.save()
         
         print(f"REINFORCE update: image_id={image_id}, reward={reward}, loss={policy_loss.item():.4f}")
 
 
 # Single instance — this is the model's brain
-sarsa_object = SARSAObject()  # rename per model
+reinforce_object = ReinforceObject()
