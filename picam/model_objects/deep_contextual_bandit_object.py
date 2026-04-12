@@ -64,7 +64,7 @@ class DeepContextualBanditObject:
         print(f"Epsilon: {self.epsilon:.4f}")
 
         # Epsilon-greedy
-        x = np.random.random
+        x = np.random.random()
         print("EPSILON VALUE IN EPSILON-GREEDY:", x)
 
         if x < self.epsilon:
