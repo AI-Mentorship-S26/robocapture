@@ -87,7 +87,8 @@ def run_ppo(image_id, state):
     ppo_object.record(image_id, state, action)
     return action
 
-
+def update_ppo(image_id, reward): 
+    ppo_object.update(image_id, reward)
 # REINFORCE
 def run_reinforce(image_id, state):
     state_tensor = torch.from_numpy(np.array(state)).float()
