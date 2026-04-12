@@ -76,6 +76,9 @@ def update_dqn(image_id, reward):
 
 # PPO
 def run_ppo(image_id, state):
+    if ppo_object.actor_model is None:
+        ppo_object.record(image_id, state, 0)
+
     state_tensor = torch.from_numpy(np.array(state)).float()
     logits = ppo_object.actor_model(state_tensor)
     m = torch.distributions.Categorical(logits=logits)
@@ -83,9 +86,6 @@ def run_ppo(image_id, state):
     
     ppo_object.record(image_id, state, action)
     return action
-
-def update_ppo(image_id, reward): 
-    ppo_object.update(image_id, reward)
 
 
 # REINFORCE
