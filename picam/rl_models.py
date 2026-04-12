@@ -1,5 +1,6 @@
 import random
 from datetime import datetime
+from model_objects.deep_contextual_bandit_object import deep_contextual_bandit_object
 from model_objects.contextual_bandit_object import contextual_bandit_object
 from model_objects.sarsa_object import sarsa_object
 from model_objects.dqn_object import dqn_object
@@ -34,6 +35,14 @@ def run_random(image_id, state):
 def update_random(image_id, state):
     pass
 
+# DEEP CONTEXTUAL BANDIT
+def run_deep_contextual_bandit(image_id, state):
+    action = deep_contextual_bandit_object.choose_action(state)
+    deep_contextual_bandit_object.record(image_id, state, action)
+    return action
+
+def update_deep_contextual_bandit(image_id, reward):
+    deep_contextual_bandit_object.update(image_id, reward)
 
 # CONTEXTUAL BANDITS
 def run_contextual_bandit(image_id, state):
