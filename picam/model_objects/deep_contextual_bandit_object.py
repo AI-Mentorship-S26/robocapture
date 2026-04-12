@@ -28,7 +28,7 @@ class DeepContextualBanditObject:
         self.epsilon = 0.5          # start with high exploration
         self.epsilon_decay = 0.999  # decay slowly
         self.epsilon_min = 0.05     # never go below 5% exploration
-        self.learning_rate = 0.00001
+        self.learning_rate = 0.001
 
         # Neural network to approximate Q values
         self.network = QNetwork(self.state_size, self.n_actions)
