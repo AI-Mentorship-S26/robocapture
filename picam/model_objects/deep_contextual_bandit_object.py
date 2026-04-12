@@ -68,9 +68,13 @@ class DeepContextualBanditObject:
         print("EPSILON VALUE IN EPSILON-GREEDY:", x)
 
         if x < self.epsilon:
+            chosenValue = np.random.randint(0, 2)
+            print(f"ok we are doing random, value is {chosenValue}")
             return np.random.randint(0, 2)
         else:
-            return int(np.argmax(q_values))
+            chosenValue = int(np.argmax(q_values))
+            print(f"ok we are doing random, value is {chosenValue}")
+        return chosenValue
 
     def record(self, image_id, state, action):
         """Store state/action for this image"""
