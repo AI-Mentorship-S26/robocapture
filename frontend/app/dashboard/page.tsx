@@ -14,7 +14,7 @@ import {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type NavView = "live" | "gallery" | "rewards" | "logs";
-type RLModel = "random" | "contextual_bandit" | "sarsa" | "dqn" | "ppo" | "reinforce" | "aac" | "tiny_sac";
+type RLModel = "random" | "deep_contextual_bandit" | "contextual_bandit" | "sarsa" | "dqn" | "ppo" | "reinforce" | "aac" | "tiny_sac";
 type FrameAction = "+R" | "-P" | null;
 type WsStatus = "connecting" | "connected" | "disconnected" | "error";
 
@@ -333,6 +333,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
             <div className="flex flex-col gap-1.5">
               {([
                 { id: "random",    name: "Random",                sub: "Baseline · no learning" },
+                { id: "deep_contextual_bandit", name: "Deep Contextual Bandit", sub: "DCB · neural network" },
                 { id: "contextual_bandit", name: "Contextual Bandit", sub: "CB · sample efficient" },
                 { id: "sarsa",     name: "Deep SARSA",             sub: "SARSA · on-policy" },
                 { id: "dqn",       name: "Deep Q-Network",         sub: "DQN · off-policy" },
