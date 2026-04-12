@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 from datetime import datetime
 
-class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
+class REINFORCEObject:  # rename per model e.g. DQNObject, PPOObject etc.
     def __init__(self):
         self.history = {}  # {image_id: (state, action, log_prob)}
         self.actor_model = None
@@ -59,6 +59,6 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
 
 
 # Single instance — this is the model's brain
-sarsa_object = SARSAObject()  # rename per model
+  # rename per model
 
 reinforce_object = REINFORCEObject()
