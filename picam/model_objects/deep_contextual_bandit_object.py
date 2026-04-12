@@ -87,12 +87,13 @@ class DeepContextualBanditObject:
         q_values = self.network(state_tensor)
 
         # Target: reward for the action taken, keep other action's Q value
-        target = q_values.clone().detach()
-        target[0][action] = reward  # update only the action that was taken
+        with torch.no_grad():
+            target = q_values.clone()
+        target[0][action] = float(reward)
 
         # Backpropagate
         self.optimizer.zero_grad()
-        loss = self.loss_fn(q_values, target)
+        loss = self.loss_fn(q_values, target.detach())
         loss.backward()
         self.optimizer.step()
 
