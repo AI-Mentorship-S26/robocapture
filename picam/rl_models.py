@@ -76,6 +76,9 @@ def update_dqn(image_id, reward):
 
 # PPO
 def run_ppo(image_id, state):
+    if ppo_object.actor_model is None:
+        ppo_object.record(image_id, state, 0)
+
     state_tensor = torch.from_numpy(np.array(state)).float()
     logits = ppo_object.actor_model(state_tensor)
     m = torch.distributions.Categorical(logits=logits)
@@ -86,12 +89,13 @@ def run_ppo(image_id, state):
 
 def update_ppo(image_id, reward): 
     ppo_object.update(image_id, reward)
-
-
 # REINFORCE
 def run_reinforce(image_id, state):
-    # TODO: implement inference logic
-    action = random.randint(0, 1) #placeholder until implemented
+    state_tensor = torch.from_numpy(np.array(state)).float()
+    logits = reinforce_object.actor_model(state_tensor)
+    m = torch.distributions.Categorical(logits=logits)
+    action = m.sample().item()
+    
     reinforce_object.record(image_id, state, action)
     return action
 
@@ -116,6 +120,17 @@ def run_aac(image_id, state):
 
 def update_aac(image_id, reward):
     aac_object.update(image_id, reward)
+def nav_score_aac(image_id, state):
+
+    if aac_object.actor_model is None:
+        return None
+    state_tensor = torch.from_numpy(np.array(state)).float()
+    with torch.no_grad():
+        logits = aac_object.actor_model(state_tensor)
+        probs  = torch.softmax(logits, dim=0)
+        action = torch.distributions.Categorical(logits=logits).sample().item()
+    aac_object.record(image_id, state, action)
+    return float(probs[1].item())
 
 
 # Tiny SAC

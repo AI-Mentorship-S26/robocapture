@@ -45,7 +45,7 @@ while not done:
     if should_send:
         print("\n PASSED - Ready to send")
     else:
-        print("\n REJECTED - TOO poor quality")
+        print("\n REJECTED")
         
     # previous image = next_image
     previous_image = next_image
