@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase/client";
 import {
   BarChart,
@@ -13,7 +14,7 @@ import {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type NavView = "live" | "gallery" | "rewards" | "logs";
-type RLModel = "dqn" | "mab";
+type RLModel = "random" | "deep_contextual_bandit" | "contextual_bandit" | "sarsa" | "dqn" | "ppo" | "reinforce" | "aac" | "tiny_sac";
 type FrameAction = "+R" | "-P" | null;
 type WsStatus = "connecting" | "connected" | "disconnected" | "error";
 
@@ -154,11 +155,17 @@ function HistoryRow({ entry }: { entry: HistoryEntry }) {
 
 export default function DashboardPage() {
   const socketRef = useRef<WebSocket | null>(null);
+  const router = useRouter();
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }, [router]);
 
   const [user, setUser]           = useState<{ email?: string; id?: string } | null>(null);
   const [wsStatus, setWsStatus]   = useState<WsStatus>("connecting");
   const [activeView, setActiveView] = useState<NavView>("live");
-  const [activeModel, setActiveModel] = useState<RLModel>("dqn");
+  const [activeModel, setActiveModel] = useState<RLModel>("random");
   const [stats, setStats]         = useState({ sent: 18, skipped: 34, epsilon: 0.22 });
   const [frameNumber, setFrameNumber] = useState(1247);
 const [stateVector, setStateVector] = useState<StateVector>({
@@ -166,14 +173,12 @@ const [stateVector, setStateVector] = useState<StateVector>({
   });
   const [history, setHistory]     = useState<HistoryEntry[]>(SEED_HISTORY);
   const [rewardData, setRewardData] = useState(SEED_REWARD_HISTORY);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [isVectorizing, setIsVectorizing] = useState(false);
-  const [vectorStatus, setVectorStatus] = useState<{ success?: boolean; message?: string } | null>(null);
   const [receivedAgo, setReceivedAgo] = useState("waiting...");
   const [wsMessage, setWsMessage] = useState<string>("");
   const [capturedImageSrc, setCapturedImageSrc] = useState<string>("");
+  const [actionTaken, setActionTaken] = useState(false);
   const [currentImageId, setCurrentImageId] = useState<string>("");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Auth
   useEffect(() => {
@@ -193,8 +198,9 @@ const [stateVector, setStateVector] = useState<StateVector>({
         if (data.type === "image") {
           setWsMessage("Image received!");
           setCapturedImageSrc(`data:${data.format};base64,${data.data}`);
-          setCurrentImageId(data.image_id); 
+          setCurrentImageId(data.image_id);
           setFrameNumber((n) => n + 1);
+          setActionTaken(false);
         } else if (data.type === "no_send") {
           setWsMessage(data.message);
         } else if (data.type === "error") {
@@ -210,36 +216,10 @@ const [stateVector, setStateVector] = useState<StateVector>({
     return () => socket.close();
   }, []);
 
-  // Paste image
-  useEffect(() => {
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf("image") !== -1) {
-          const blob = items[i].getAsFile();
-          if (blob) {
-            setImageFile(blob);
-            setImagePreview((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); });
-            setVectorStatus(null);
-            setFrameNumber((n) => n + 1);
-            setReceivedAgo("just now");
-            setStateVector({
-              entropy:     Math.round(Math.random() * 100) / 100,
-              edgeDensity: Math.round(Math.random() * 100) / 100,
-              novelty:     Math.round(Math.random() * 100) / 100,
-              opticalFlow: Math.round(Math.random() * 100) / 100,
-            });
-          }
-        }
-      }
-    };
-    window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
-  }, []);
 
   const sendAction = useCallback((action: "+R" | "-P" | "skip") => {
-    if (!imagePreview) return;
+    if (!capturedImageSrc || actionTaken) return;
+    setActionTaken(true);
     const historyAction: FrameAction = action === "skip" ? null : action;
     const status = action === "skip" ? "skipped" : "sent";
     const now = new Date();
@@ -257,29 +237,13 @@ const [stateVector, setStateVector] = useState<StateVector>({
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         const feedback = action === "+R" ? "reward" : "punishment";
         socketRef.current.send(`${feedback}:${currentImageId}`);
+        console.log(`Sent: ${feedback}:${currentImageId}`);
       }
     } else {
       setStats((s) => ({ ...s, skipped: s.skipped + 1 }));
     }
-  }, [imagePreview]);
+  }, [capturedImageSrc, actionTaken, currentImageId]);
 
-  const handleVectorize = useCallback(async () => {
-    if (!imageFile) return;
-    setIsVectorizing(true);
-    setVectorStatus(null);
-    const formData = new FormData();
-    formData.append("image", imageFile);
-    if (user?.id) formData.append("userId", user.id);
-    try {
-      const res  = await fetch("/api/vectorize", { method: "POST", body: formData });
-      const data = await res.json();
-      setVectorStatus({ success: res.ok, message: res.ok ? data.message : data.error });
-    } catch (e: unknown) {
-      setVectorStatus({ success: false, message: e instanceof Error ? e.message : "Unknown error" });
-    } finally {
-      setIsVectorizing(false);
-    }
-  }, [imageFile, user]);
 
   const handleCaptureImage = useCallback(() => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -314,6 +278,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
           <StatPill label="Sent"    value={stats.sent} />
           <StatPill label="Skipped" value={stats.skipped} />
           <StatPill label="ε ="     value={stats.epsilon.toFixed(2)} />
+          <StatPill label="Model" value={activeModel} />
         </div>
 
         <div className="flex items-center gap-3">
@@ -323,7 +288,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
           </div>
           {user && (
             <button
-              onClick={() => supabase.auth.signOut()}
+              onClick={() => setShowLogoutModal(true)}
               title="Log out"
               className="w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 text-[10px] font-bold uppercase hover:bg-blue-500/30 transition-colors cursor-pointer"
             >
@@ -367,12 +332,25 @@ const [stateVector, setStateVector] = useState<StateVector>({
             <p className="text-[9px] font-semibold text-white/20 tracking-[0.2em] uppercase px-2 mb-2">RL Model</p>
             <div className="flex flex-col gap-1.5">
               {([
-                { id: "dqn", name: "Deep Q-Network",     sub: "DQL · stateful" },
-                { id: "mab", name: "Multi-Armed Bandit",  sub: "MAB · lightweight" },
+                { id: "random",    name: "Random",                sub: "Baseline · no learning" },
+                { id: "deep_contextual_bandit", name: "Deep Contextual Bandit", sub: "DCB · neural network" },
+                { id: "contextual_bandit", name: "Contextual Bandit", sub: "CB · sample efficient" },
+                { id: "sarsa",     name: "Deep SARSA",             sub: "SARSA · on-policy" },
+                { id: "dqn",       name: "Deep Q-Network",         sub: "DQN · off-policy" },
+                { id: "ppo",       name: "Proximal Policy Opt.",   sub: "PPO · policy gradient" },
+                { id: "reinforce", name: "REINFORCE",              sub: "PG · Monte Carlo" },
+                { id: "aac",       name: "Advantage Actor-Critic", sub: "AAC · actor-critic" },
+                { id: "tiny_sac",  name: "Tiny SAC",               sub: "SAC · entropy-based" },
               ] as { id: RLModel; name: string; sub: string }[]).map(({ id, name, sub }) => (
                 <button
                   key={id}
-                  onClick={() => setActiveModel(id)}
+                  onClick={() => {
+                    setActiveModel(id)
+                    if (socketRef.current?.readyState === WebSocket.OPEN) {
+                      socketRef.current.send(`setModel:${id}`);
+                      console.log(`Sent: setModel:${id}`);
+                    }
+                  }}
                   className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all duration-150 cursor-pointer text-left w-full border ${
                     activeModel === id
                       ? "bg-blue-500/10 border-blue-500/25 text-blue-400"
@@ -388,7 +366,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
               ))}
             </div>
             <button
-              onClick={() => supabase.auth.signOut()}
+              onClick={handleLogout}
               className="flex items-center gap-2 px-2.5 py-2 mt-3 w-full rounded-md text-white/25 hover:text-rose-400/70 hover:bg-rose-500/[0.05] transition-colors duration-150 cursor-pointer text-xs"
             >
               <LogOutIcon size={13} />Sign out
@@ -406,109 +384,140 @@ const [stateVector, setStateVector] = useState<StateVector>({
             </h1>
           </div>
 
-          {/* Current Frame — 2-column split */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-            {/* Left — WebSocket / Capture */}
+          {/* ── Reward History View ─────────────────────────────────────────── */}
+          {activeView === "rewards" && (
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm flex flex-col">
               <div className="px-4 py-3 border-b border-white/[0.05] flex items-center justify-between">
-                <span className="text-[10px] font-semibold text-white/25 tracking-widest uppercase">WebSocket</span>
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-white/[0.08] bg-white/[0.04]">
-                  <span className={`w-1.5 h-1.5 rounded-full ${wsColor}`} />
-                  <span className="text-[10px] text-white/50">{wsLabel}</span>
-                </div>
+                <span className="text-[10px] font-semibold text-white/25 tracking-widest uppercase">Reward History</span>
+                <span className="font-mono text-[11px] text-white/30">{rewardData.length} steps</span>
               </div>
-              <div className="p-5 flex flex-col gap-4 flex-1">
-                {/* Status / message box */}
-                <div className="p-3 rounded-lg bg-[#161619] border border-white/[0.06] min-h-[48px] flex items-center justify-center">
-                  <p className="text-[11px] font-mono text-white/40 italic text-center">
-                    {wsMessage ? `Last message: ${wsMessage}` : "Waiting for backend response…"}
-                  </p>
+              <div className="p-5 flex flex-col gap-3">
+                {/* Large bar chart */}
+                <div className="h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={rewardData} barCategoryGap="20%">
+                      <Tooltip
+                        cursor={false}
+                        contentStyle={{
+                          background: "#161619",
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          borderRadius: "6px",
+                          fontSize: "10px",
+                          color: "rgba(255,255,255,0.6)",
+                          padding: "4px 8px",
+                        }}
+                        itemStyle={{ color: "#3B82F6" }}
+                        labelStyle={{ display: "none" }}
+                      />
+                      <Bar dataKey="reward" radius={[3, 3, 0, 0]}>
+                        {rewardData.map((_, index) => (
+                          <Cell
+                            key={index}
+                            fill={
+                              index === rewardData.length - 1
+                                ? "#3B82F6"
+                                : `rgba(59,130,246,${0.2 + (index / rewardData.length) * 0.6})`
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-
-                {/* Captured image */}
-                <div className="w-full aspect-video rounded-lg overflow-hidden bg-[#161619] border border-white/[0.06] flex items-center justify-center">
-                  {capturedImageSrc ? (
-                    <img src={capturedImageSrc} alt="Captured from Pi" className="w-full h-full object-contain" />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
-                        <MonitorIcon size={18} className="text-white/15" />
+                <div className="flex justify-between">
+                  <span className="font-mono text-[9px] text-white/15">earliest</span>
+                  <span className="font-mono text-[9px] text-white/15">latest</span>
+                </div>
+                {/* Per-step rows */}
+                <div className="mt-2 flex flex-col gap-1">
+                  <div className="flex items-center gap-3 px-1 pb-1 border-b border-white/[0.04]">
+                    <span className="text-[9px] text-white/20 uppercase tracking-widest w-8">Step</span>
+                    <span className="text-[9px] text-white/20 uppercase tracking-widest flex-1">Reward</span>
+                    <span className="text-[9px] text-white/20 uppercase tracking-widest w-10 text-right">Value</span>
+                  </div>
+                  {[...rewardData].reverse().map((entry, index) => (
+                    <div key={index} className="flex items-center gap-3 px-1 py-1.5 rounded-md hover:bg-white/[0.03] transition-colors">
+                      <span className="font-mono text-[11px] text-white/30 w-8">{entry.step}</span>
+                      <div className="flex-1 h-[4px] rounded-full bg-white/[0.05] overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${entry.reward * 100}%`,
+                            backgroundColor: entry.reward >= 0.7 ? "#10B981" : entry.reward >= 0.4 ? "#3B82F6" : "#F59E0B",
+                          }}
+                        />
                       </div>
-                      <p className="text-[11px] text-white/20">No capture yet</p>
+                      <span className="font-mono text-[11px] text-white/50 w-10 text-right">{entry.reward.toFixed(2)}</span>
                     </div>
-                  )}
+                  ))}
                 </div>
-
-                {/* Frame meta */}
-                <div className="flex items-center gap-3 flex-wrap justify-center">
-                  <span className="font-mono text-[11px] text-white/30">
-                    Frame <span className="text-white/50">#{frameNumber.toLocaleString()}</span>
-                    <span className="text-white/20 mx-2">·</span>640×480
-                  </span>
-                  <span className="text-[11px] text-white/25">Received {receivedAgo}</span>
-                </div>
-
-                {/* Capture button */}
-                <button
-                  onClick={handleCaptureImage}
-                  className="w-full py-2.5 rounded-full bg-white/90 dark:bg-white text-black text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
-                >
-                  Capture Image
-                </button>
               </div>
             </div>
+          )}
 
-            {/* Right — Image Vectorizer */}
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm flex flex-col">
-              <div className="px-4 py-3 border-b border-white/[0.05]">
-                <span className="text-[10px] font-semibold text-white/25 tracking-widest uppercase">Image Vectorizer</span>
+          {/* ── Live Feed View ──────────────────────────────────────────────── */}
+          {activeView === "live" && (<>
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm flex flex-col relative">
+            <div className="px-4 py-3 border-b border-white/[0.05] flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-white/25 tracking-widest uppercase">WebSocket</span>
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-white/[0.08] bg-white/[0.04]">
+                <span className={`w-1.5 h-1.5 rounded-full ${wsColor}`} />
+                <span className="text-[10px] text-white/50">{wsLabel}</span>
               </div>
-              <div className="p-5 flex flex-col gap-4 flex-1">
-                {user ? (
-                  <>
-                    <p className="text-[11px] text-white/30 text-center">
-                      Paste an image (Ctrl+V) anywhere to vectorize and send to Supabase.
-                    </p>
+            </div>
+            <div className="p-5 flex flex-col gap-4 flex-1">
+              {/* Status / message box */}
+              <div className="p-3 rounded-lg bg-[#161619] border border-white/[0.06] min-h-[48px] flex items-center justify-center">
+                <p className="text-[11px] font-mono text-white/40 italic text-center">
+                  {wsMessage ? `Last message: ${wsMessage}` : "Waiting for backend response…"}
+                </p>
+              </div>
 
-                    {/* Paste preview */}
-                    <div className="flex-1 min-h-[160px] border-2 border-dashed border-white/[0.08] rounded-lg flex items-center justify-center overflow-hidden">
-                      {imagePreview ? (
-                        <img src={imagePreview} alt="Pasted preview" className="max-h-[180px] object-contain rounded" />
-                      ) : (
-                        <p className="text-[11px] text-white/20">No image pasted yet</p>
-                      )}
-                    </div>
-
-                    {vectorStatus && (
-                      <p className={`text-[11px] font-mono text-center ${vectorStatus.success ? "text-emerald-400" : "text-rose-400"}`}>
-                        {vectorStatus.message}
-                      </p>
-                    )}
-
-                    <button
-                      onClick={handleVectorize}
-                      disabled={!imagePreview || isVectorizing}
-                      className="w-full py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:bg-blue-600 text-white text-sm font-semibold active:scale-95 transition-all"
-                    >
-                      {isVectorizing ? "Vectorizing & Saving…" : "Vectorize Image"}
-                    </button>
-                  </>
+              {/* Captured image */}
+              <div className="w-full aspect-video rounded-lg overflow-hidden bg-[#161619] border border-white/[0.06] flex items-center justify-center">
+                {capturedImageSrc ? (
+                  <img src={capturedImageSrc} alt="Captured from Pi" className="w-full h-full object-contain" />
                 ) : (
-                  <div className="flex flex-col items-center justify-center flex-1 gap-4">
-                    <p className="text-[13px] font-semibold text-white/60">Login required</p>
-                    <p className="text-[11px] text-white/30 text-center">You must be logged in to vectorize images.</p>
-                    <a
-                      href="/login"
-                      className="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all text-center"
-                    >
-                      Go to Login
-                    </a>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+                      <MonitorIcon size={18} className="text-white/15" />
+                    </div>
+                    <p className="text-[11px] text-white/20">No capture yet</p>
                   </div>
                 )}
               </div>
+
+              {/* Frame meta */}
+              <div className="flex items-center gap-3 flex-wrap justify-center">
+                <span className="font-mono text-[11px] text-white/30">
+                  Frame <span className="text-white/50">#{frameNumber.toLocaleString()}</span>
+                  <span className="text-white/20 mx-2">·</span>640×480
+                </span>
+                <span className="text-[11px] text-white/25">Received {receivedAgo}</span>
+              </div>
+
+              {/* Capture button */}
+              <button
+                onClick={handleCaptureImage}
+                className="w-full py-2.5 rounded-full bg-white/90 dark:bg-white text-black text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
+              >
+                Capture Image
+              </button>
             </div>
 
+            {/* Login required overlay */}
+            {!user && (
+              <div className="absolute inset-0 rounded-xl bg-[#0F0F12]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+                <p className="text-[15px] font-semibold text-white/80">Login required</p>
+                <p className="text-[12px] text-white/40 text-center px-6">You must be logged in to capture images.</p>
+                <a
+                  href="/login"
+                  className="mt-1 px-6 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-all"
+                >
+                  Go to Login
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Action Bar */}
@@ -517,21 +526,21 @@ const [stateVector, setStateVector] = useState<StateVector>({
             <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={() => sendAction("+R")}
-                disabled={!capturedImageSrc}
+                disabled={!capturedImageSrc || actionTaken}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/15 hover:border-emerald-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 <span className="text-base font-bold leading-none">+</span>Reward
               </button>
               <button
                 onClick={() => sendAction("-P")}
-                disabled={!capturedImageSrc}
+                disabled={!capturedImageSrc || actionTaken}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 text-sm font-semibold hover:bg-rose-500/15 hover:border-rose-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 <span className="text-base font-bold leading-none">−</span>Penalty
               </button>
               <button
                 onClick={() => sendAction("skip")}
-                disabled={!capturedImageSrc}
+                disabled={!capturedImageSrc || actionTaken}
                 className="flex items-center justify-center py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/50 text-sm font-semibold hover:bg-white/[0.07] hover:text-white/70 hover:border-white/15 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
               >
                 Skip
@@ -555,6 +564,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
               </div>
             </div>
           </div>
+          </>)}
 
         </main>
 
@@ -613,6 +623,39 @@ const [stateVector, setStateVector] = useState<StateVector>({
         </aside>
 
       </div>
+
+      {/* ── Logout Confirmation Modal ───────────────────────────────────────── */}
+      {showLogoutModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm"
+          onClick={() => setShowLogoutModal(false)}
+        >
+          <div
+            className="w-80 rounded-xl border border-white/[0.10] bg-[#16161A] shadow-2xl p-6 flex flex-col gap-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-1.5">
+              <h2 className="text-sm font-semibold text-white/90">Log out</h2>
+              <p className="text-xs text-white/40">Are you sure you want to end your session?</p>
+            </div>
+            <div className="flex gap-2.5 justify-end">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-1.5 rounded-lg text-xs text-white/50 border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] hover:text-white/70 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { handleLogout(); setShowLogoutModal(false); }}
+                className="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-rose-500/80 border border-rose-500/40 hover:bg-rose-500 transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <LogOutIcon size={12} />
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

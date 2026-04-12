@@ -4,7 +4,7 @@ from datetime import datetime
 import sys
 
 try:
-    base_folder = Path("/home/mahd/Desktop/Robocapture/robocapture/picam/captures")
+    base_folder = Path(__file__).parent / "captures"
     base_folder.mkdir(exist_ok=True)
 
     filename = base_folder / f"image_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.jpg"

@@ -11,6 +11,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 from image_preprocessing import ImagePreprocessingPipeline
 from rl_models import (
     run_random, update_random,
+    run_deep_contextual_bandit, update_deep_contextual_bandit,
+    run_contextual_bandit, update_contextual_bandit,
     run_sarsa, update_sarsa,
     run_dqn, update_dqn,
     run_ppo, update_ppo,
@@ -27,6 +29,8 @@ current_model = "random"  # default model
 # Maps model name to its run and update functions
 MODEL_MAP = {
     "random":   (run_random,    update_random),
+    "deep_contextual_bandit": (run_deep_contextual_bandit, update_deep_contextual_bandit),
+    "contextual_bandit": (run_contextual_bandit, update_contextual_bandit),
     "sarsa":    (run_sarsa,     update_sarsa),
     "dqn":      (run_dqn,       update_dqn),
     "ppo":      (run_ppo,       update_ppo),
@@ -128,8 +132,10 @@ async def handle_backend(websocket):
 
 def run_capture():
     try:
+        SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+        CAPTURE_SCRIPT = os.path.join(SCRIPT_DIR, "capture_once.py")
         proc = subprocess.run(
-            ["python3", "/home/mahd/Desktop/Robocapture/robocapture/picam/capture_once.py"],
+            ["python3", CAPTURE_SCRIPT],
             capture_output=True, text=True
         )
         image_path = proc.stdout.strip()
