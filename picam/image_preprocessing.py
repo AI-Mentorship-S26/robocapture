@@ -198,8 +198,8 @@ class SemanticFeatureExtractor:
         self.model.eval()
         
         self.model.classifier = torch.nn.Identity()
-        
-        torch.set_grad_enabled(False)
+
+        #removed setgrad false        
         
         self.transform = transforms.Compose([
             transforms.Resize((224, 224)),
