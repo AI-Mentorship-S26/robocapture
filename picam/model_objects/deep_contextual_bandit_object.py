@@ -14,7 +14,7 @@ class QNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(32, n_actions)
         )
-    
+
     def forward(self, x):
         return self.net(x)
 
@@ -22,7 +22,7 @@ class QNetwork(nn.Module):
 class DeepContextualBanditObject:
     def __init__(self):
         self.history = {}  # {image_id: (state, action)}
-        
+
         self.state_size = 1287
         self.n_actions = 2
         self.epsilon = 0.5          # start with high exploration
@@ -33,33 +33,32 @@ class DeepContextualBanditObject:
         # Neural network to approximate Q values
         self.network = QNetwork(self.state_size, self.n_actions)
         self.optimizer = optim.Adam(self.network.parameters(), lr=self.learning_rate)
-        self.loss_fn = nn.MSELoss()
 
     def normalize_state(self, state):
         """Normalize metrics and embedding separately"""
         state_array = np.array(state)
         metrics = state_array[:7]
         embedding = state_array[7:]
-        
+
         metrics_norm = (metrics - np.mean(metrics)) / (np.std(metrics) + 1e-8)
         embedding_norm = (embedding - np.mean(embedding)) / (np.std(embedding) + 1e-8)
-        
+
         return np.concatenate([metrics_norm, embedding_norm])
 
     def predict(self, state):
         """Predict Q values for each action using neural network"""
         state_array = self.normalize_state(state)
         state_tensor = torch.FloatTensor(state_array).unsqueeze(0)
-        
+
         with torch.no_grad():
             q_values = self.network(state_tensor)
-        
+
         return q_values.squeeze().numpy()
 
     def choose_action(self, state):
         """Epsilon-greedy action selection"""
         q_values = self.predict(state)
-        
+
         print(f"Q values: {q_values}")
         print(f"Epsilon: {self.epsilon:.4f}")
 
@@ -86,18 +85,19 @@ class DeepContextualBanditObject:
         # Forward pass with gradients enabled
         self.network.train()
         self.optimizer.zero_grad()
-        
+
         q_values = self.network(state_tensor)
-        
-        # Only compute loss for the action that was taken
-        predicted = q_values[0][action]
+
+        # Use gather to maintain gradient through indexing
+        action_tensor = torch.tensor([[action]])
+        predicted = torch.gather(q_values, 1, action_tensor).squeeze()
         target = torch.tensor(float(reward))
-        
+
         # Simple MSE loss on just the action taken
         loss = (predicted - target) ** 2
         loss.backward()
         self.optimizer.step()
-        
+
         self.network.eval()
 
         # Decay epsilon
@@ -105,6 +105,7 @@ class DeepContextualBanditObject:
 
         print(f"Updated network for action {action} with reward {reward}")
         print(f"Loss: {loss.item():.4f} | Epsilon: {self.epsilon:.4f}")
-        
+
+
 # Single instance
 deep_contextual_bandit_object = DeepContextualBanditObject()
