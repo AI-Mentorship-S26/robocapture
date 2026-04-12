@@ -119,6 +119,17 @@ def run_aac(image_id, state):
 
 def update_aac(image_id, reward):
     aac_object.update(image_id, reward)
+def nav_score_aac(image_id, state):
+
+    if aac_object.actor_model is None:
+        return None
+    state_tensor = torch.from_numpy(np.array(state)).float()
+    with torch.no_grad():
+        logits = aac_object.actor_model(state_tensor)
+        probs  = torch.softmax(logits, dim=0)
+        action = torch.distributions.Categorical(logits=logits).sample().item()
+    aac_object.record(image_id, state, action)
+    return float(probs[1].item())
 
 
 # Tiny SAC
