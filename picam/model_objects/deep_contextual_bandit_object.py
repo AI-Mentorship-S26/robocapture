@@ -86,14 +86,13 @@ class DeepContextualBanditObject:
         # Get current Q value predictions
         q_values = self.network(state_tensor)
 
-        # Target: reward for the action taken, keep other action's Q value
-        with torch.no_grad():
-            target = q_values.clone()
+        # Build target using detached q_values, then update the action taken
+        target = q_values.detach().clone()
         target[0][action] = float(reward)
 
-        # Backpropagate
+        # Backpropagate — q_values still has grad, target is detached
         self.optimizer.zero_grad()
-        loss = self.loss_fn(q_values, target.detach())
+        loss = self.loss_fn(q_values, target)
         loss.backward()
         self.optimizer.step()
 
