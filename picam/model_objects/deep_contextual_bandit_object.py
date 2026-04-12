@@ -70,7 +70,6 @@ class DeepContextualBanditObject:
         if x < self.epsilon:
             chosenValue = np.random.randint(0, 2)
             print(f"ok we are doing random, value is {chosenValue}")
-            return np.random.randint(0, 2)
         else:
             chosenValue = int(np.argmax(q_values))
             print(f"ok we are doing random, value is {chosenValue}")
