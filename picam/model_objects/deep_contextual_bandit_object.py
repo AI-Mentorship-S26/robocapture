@@ -28,7 +28,7 @@ class DeepContextualBanditObject:
         self.epsilon = 0.5          # start with high exploration
         self.epsilon_decay = 0.999  # decay slowly
         self.epsilon_min = 0.05     # never go below 5% exploration
-        self.learning_rate = 0.001
+        self.learning_rate = 0.00001
 
         # Neural network to approximate Q values
         self.network = QNetwork(self.state_size, self.n_actions)
@@ -64,7 +64,10 @@ class DeepContextualBanditObject:
         print(f"Epsilon: {self.epsilon:.4f}")
 
         # Epsilon-greedy
-        if np.random.random() < self.epsilon:
+        x = np.random.random
+        print("EPSILON VALUE IN EPSILON-GREEDY:", x)
+
+        if x < self.epsilon:
             return np.random.randint(0, 2)
         else:
             return int(np.argmax(q_values))
