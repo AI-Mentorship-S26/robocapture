@@ -152,3 +152,23 @@ def run_tiny_sac(image_id, state):
 
 def update_tiny_sac(image_id, reward):
     tiny_sac_object.update(image_id, reward)
+def nav_score_random(image_id, state):
+    return None
+
+def nav_score_contextual_bandit(image_id, state):
+    return None
+
+def nav_score_deep_contextual_bandit(image_id, state):
+    return None
+
+def nav_score_dqn(image_id, state):
+    return None
+
+def nav_score_ppo(image_id, state):
+    return None
+
+def nav_score_reinforce(image_id, state):
+    return None
+
+def nav_score_tiny_sac(image_id, state):
+    return None

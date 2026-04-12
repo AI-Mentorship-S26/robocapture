@@ -36,6 +36,7 @@ class Encoder:
     def onPinUpdate(self, _gpio, aPinVal, measuringTime):
         currA = self.daemon.read(self.pinA)
         currB = self.daemon.read(self.pinB)
+        # print(f"Current for {self.encoderDirection} is {currA} for A, {currB} for B")
         index = (self.prevA << 3) | (self.prevB << 2) | (currA << 1) | currB
         self.tick += self.lookup[index]
         self.prevA = currA
@@ -52,10 +53,10 @@ class Encoder:
             await asyncio.sleep(0.01)
 
 # green is A, blue is B
-rightEncoderPinA =  22
-rightEncoderPinB = 23
-leftEncoderPinA = 17
-leftEncoderPinB = 27
+rightEncoderPinA =  17
+rightEncoderPinB = 27
+leftEncoderPinA = 24
+leftEncoderPinB = 25
 
 pioDaemon = pigpio.pi()
 
@@ -72,7 +73,7 @@ async def main():
     task1 = asyncio.create_task(leftEncoder.handlePrint())
     task2 = asyncio.create_task(rightEncoder.handlePrint())
     
-    await asyncio.sleep(5)
+    await asyncio.sleep(100)
 
     print("Finished testing!")
 
