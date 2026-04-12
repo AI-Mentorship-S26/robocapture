@@ -1,6 +1,6 @@
 from datetime import datetime
 
-class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
+class DQNObject:  # rename per model e.g. DQNObject, PPOObject etc.
     def __init__(self):
         self.history = {}  # {image_id: (state, action)}
         
@@ -28,4 +28,4 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
         print(f"Updating model with reward {reward} for image {image_id}")
 
 # Single instance — this is the model's brain
-sarsa_object = SARSAObject()  # rename per model
+dqn_object = DQNObject()  # rename per model

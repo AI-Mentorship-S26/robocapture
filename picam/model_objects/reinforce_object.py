@@ -5,25 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 from datetime import datetime
 
-
-class Actor(nn.Module):
-    """Policy network for REINFORCE"""
-    def __init__(self, n_inputs, n_actions):
-        super(Actor, self).__init__()
-        self.actor = nn.Sequential(
-            nn.Linear(n_inputs, 64),
-            nn.ReLU(),
-            nn.Linear(64, 64),
-            nn.ReLU(),
-            nn.Linear(64, n_actions),
-        )
-    
-    def forward(self, x):
-        return self.actor(x)
-
-
-class ReinforceObject:
-    """REINFORCE policy gradient model"""
+class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
     def __init__(self):
         self.history = {}  # {image_id: (state, action, log_prob)}
         self.actor_model = None
@@ -77,4 +59,4 @@ class ReinforceObject:
 
 
 # Single instance — this is the model's brain
-reinforce_object = ReinforceObject()
+sarsa_object = SARSAObject()  # rename per model
