@@ -73,7 +73,10 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         # Update weights for the action that was taken
         self.weights[action] += self.learning_rate * error * state_array
         
-        
+        # Give a small signal to the other action in the opposite direction
+        other_action = 1 - action
+        self.weights[other_action] -= self.learning_rate * 0.1 * error * state_array
+                
         # Decay epsilon — explore less over time as model gets more confident
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
         
