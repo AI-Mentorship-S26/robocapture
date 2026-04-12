@@ -60,3 +60,5 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
 
 # Single instance — this is the model's brain
 sarsa_object = SARSAObject()  # rename per model
+
+reinforce_object = REINFORCEObject()
