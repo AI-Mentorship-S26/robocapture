@@ -33,6 +33,7 @@ class DeepContextualBanditObject:
         # Neural network to approximate Q values
         self.network = QNetwork(self.state_size, self.n_actions)
         self.optimizer = optim.Adam(self.network.parameters(), lr=self.learning_rate)
+        self.loss_fn = nn.MSELoss()
 
     def normalize_state(self, state):
         """Normalize metrics and embedding separately"""
@@ -82,23 +83,18 @@ class DeepContextualBanditObject:
         state_array = self.normalize_state(state)
         state_tensor = torch.FloatTensor(state_array).unsqueeze(0)
 
-        # Forward pass with gradients enabled
-        self.network.train()
-        self.optimizer.zero_grad()
-
+        # Get current Q value predictions
         q_values = self.network(state_tensor)
 
-        # Use gather to maintain gradient through indexing
-        action_tensor = torch.tensor([[action]])
-        predicted = torch.gather(q_values, 1, action_tensor).squeeze()
-        target = torch.tensor(float(reward))
+        # Build target using detached q_values, then update the action taken
+        target = q_values.detach().clone()
+        target[0][action] = float(reward)
 
-        # Simple MSE loss on just the action taken
-        loss = (predicted - target) ** 2
+        # Backpropagate — q_values still has grad, target is detached
+        self.optimizer.zero_grad()
+        loss = self.loss_fn(q_values, target)
         loss.backward()
         self.optimizer.step()
-
-        self.network.eval()
 
         # Decay epsilon
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
