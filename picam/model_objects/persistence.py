@@ -38,4 +38,7 @@ def save_torch(path: Path, payload) -> None:
 def load_torch(path: Path):
     if not path.exists():
         return None
-    return torch.load(path, map_location="cpu")
+    # These checkpoints are created by this project and may include Python/NumPy
+    # objects in addition to plain tensor weights, so trusted local loads need
+    # the legacy unpickling path.
+    return torch.load(path, map_location="cpu", weights_only=False)
