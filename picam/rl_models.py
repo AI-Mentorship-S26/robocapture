@@ -91,6 +91,10 @@ def update_ppo(image_id, reward):
     ppo_object.update(image_id, reward)
 # REINFORCE
 def run_reinforce(image_id, state):
+    if reinforce_object.actor_model is None:
+        reinforce_object.record(image_id, state, 0)
+        return 0
+    
     state_tensor = torch.from_numpy(np.array(state)).float()
     logits = reinforce_object.actor_model(state_tensor)
     m = torch.distributions.Categorical(logits=logits)

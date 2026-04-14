@@ -34,6 +34,9 @@ class ReinforceObject:
         self.gamma = 0.99  # discount factor
         self.learning_rate = 1e-4
         self.input_size = None
+        self.update_count = 0
+        self.last_reward = None
+        self.last_updated_at = None
         self.checkpoint_path = model_file("reinforce", ".pt")
 
         self.ensure_initialized(STATE_SIZE)
@@ -61,12 +64,16 @@ class ReinforceObject:
         if self.actor_model is None:
             return
 
+        self.last_updated_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
         save_torch(
             self.checkpoint_path,
             {
                 "input_size": self.input_size,
                 "learning_rate": self.learning_rate,
                 "gamma": self.gamma,
+                "update_count": self.update_count,
+                "last_reward": self.last_reward,
+                "last_updated_at": self.last_updated_at,
                 "actor_state_dict": self.actor_model.state_dict(),
                 "optimizer_state_dict": self.optimizer.state_dict(),
             },
@@ -79,6 +86,9 @@ class ReinforceObject:
 
         self.learning_rate = checkpoint.get("learning_rate", self.learning_rate)
         self.gamma = checkpoint.get("gamma", self.gamma)
+        self.update_count = checkpoint.get("update_count", self.update_count)
+        self.last_reward = checkpoint.get("last_reward", self.last_reward)
+        self.last_updated_at = checkpoint.get("last_updated_at", self.last_updated_at)
         self.ensure_initialized(checkpoint["input_size"])
         self.actor_model.load_state_dict(checkpoint["actor_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -108,6 +118,9 @@ class ReinforceObject:
         self.optimizer.zero_grad()
         policy_loss.backward()
         self.optimizer.step()
+
+        self.update_count += 1
+        self.last_reward = reward
         
         # Clean up history
         del self.history[image_id]
