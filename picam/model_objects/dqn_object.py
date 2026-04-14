@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import random
 import logging
+from datetime import datetime
 from collections import deque
+from .persistence import load_torch, model_file, save_torch
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +52,19 @@ class DQNObject:
 
         self.gamma: float = 0.95      # future-reward discount
         self.batch_size: int = 32
+        self.learning_rate: float = 1e-3
+        self.replay_capacity: int = 5000
+        self.update_count: int = 0
+        self.last_reward = None
+        self.last_updated_at = None
+        self.checkpoint_path = model_file("dqn", ".pt")
 
-        self.memory: deque = deque(maxlen=5000)
+        self.memory: deque = deque(maxlen=self.replay_capacity)
 
         self.model = _QNetwork(state_size, action_size)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-3)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         self.loss_fn = nn.MSELoss()
+        self.load()
 
     # ------------------------------------------------------------------
     # Public interface (matches SARSAObject / pi_server expectations)
@@ -90,6 +99,53 @@ class DQNObject:
         """
         self.history[image_id] = (state, action)
 
+    def save(self) -> None:
+        self.last_updated_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        save_torch(
+            self.checkpoint_path,
+            {
+                "state_size": self.state_size,
+                "action_size": self.action_size,
+                "epsilon": self.epsilon,
+                "epsilon_min": self.epsilon_min,
+                "epsilon_decay": self.epsilon_decay,
+                "gamma": self.gamma,
+                "batch_size": self.batch_size,
+                "learning_rate": self.learning_rate,
+                "replay_capacity": self.replay_capacity,
+                "update_count": self.update_count,
+                "last_reward": self.last_reward,
+                "last_updated_at": self.last_updated_at,
+                "memory": list(self.memory),
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+            },
+        )
+
+    def load(self) -> None:
+        checkpoint = load_torch(self.checkpoint_path)
+        if checkpoint is None:
+            return
+
+        self.state_size = checkpoint.get("state_size", self.state_size)
+        self.action_size = checkpoint.get("action_size", self.action_size)
+        self.epsilon = checkpoint.get("epsilon", self.epsilon)
+        self.epsilon_min = checkpoint.get("epsilon_min", self.epsilon_min)
+        self.epsilon_decay = checkpoint.get("epsilon_decay", self.epsilon_decay)
+        self.gamma = checkpoint.get("gamma", self.gamma)
+        self.batch_size = checkpoint.get("batch_size", self.batch_size)
+        self.learning_rate = checkpoint.get("learning_rate", self.learning_rate)
+        self.replay_capacity = checkpoint.get("replay_capacity", self.replay_capacity)
+        self.update_count = checkpoint.get("update_count", self.update_count)
+        self.last_reward = checkpoint.get("last_reward", self.last_reward)
+        self.last_updated_at = checkpoint.get("last_updated_at", self.last_updated_at)
+
+        self.memory = deque(checkpoint.get("memory", []), maxlen=self.replay_capacity)
+        self.model = _QNetwork(self.state_size, self.action_size)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
     def update(self, image_id: str, reward: float) -> None:
         """Receive async reward, add transition to replay buffer, and train.
 
@@ -108,6 +164,9 @@ class DQNObject:
         self.memory.append((state, action, reward, None))
 
         self._replay()
+        self.update_count += 1
+        self.last_reward = reward
+        self.save()
         logger.debug("DQN updated | image=%s reward=%s epsilon=%.4f",
                      image_id, reward, self.epsilon)
 

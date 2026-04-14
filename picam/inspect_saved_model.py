@@ -5,13 +5,33 @@ import pickle
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import torch
 
 
 DEFAULT_DIR = Path(__file__).resolve().parent / "saved_models"
+MAX_CHILDREN = 8
+
+
+def format_key(key) -> str:
+    if isinstance(key, tuple):
+        return f"tuple(len={len(key)})"
+    if isinstance(key, list):
+        return f"list(len={len(key)})"
+    return str(key)
 
 
 def summarize_value(key: str, value, indent: str = "") -> None:
+    if isinstance(value, np.ndarray):
+        flat = value.astype(float, copy=False).reshape(-1)
+        mean = float(flat.mean()) if flat.size else 0.0
+        std = float(flat.std()) if flat.size else 0.0
+        print(
+            f"{indent}{key}: ndarray shape={value.shape} "
+            f"dtype={value.dtype} mean={mean:.6f} std={std:.6f}"
+        )
+        return
+
     if isinstance(value, torch.Tensor):
         flat = value.detach().float().reshape(-1)
         mean = flat.mean().item() if flat.numel() else 0.0
@@ -24,8 +44,11 @@ def summarize_value(key: str, value, indent: str = "") -> None:
 
     if isinstance(value, dict):
         print(f"{indent}{key}: dict ({len(value)} keys)")
-        for child_key, child_value in value.items():
-            summarize_value(str(child_key), child_value, indent + "  ")
+        for index, (child_key, child_value) in enumerate(value.items()):
+            if index >= MAX_CHILDREN:
+                print(f"{indent}  ... truncated {len(value) - MAX_CHILDREN} more entries")
+                break
+            summarize_value(format_key(child_key), child_value, indent + "  ")
         return
 
     if isinstance(value, (list, tuple)):

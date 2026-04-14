@@ -1,5 +1,6 @@
 import numpy as np
 from datetime import datetime
+from .persistence import load_pickle, model_file, save_pickle
 
 class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
     def __init__(self):
@@ -11,10 +12,15 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
         self.epsilon = 0.5  # start with high exploration
         self.epsilon_decay = 0.999  # decay epsilon over time
         self.epsilon_min = 0.05  # never go below 5% exploration
+        self.update_count = 0
+        self.last_reward = None
+        self.last_updated_at = None
+        self.checkpoint_path = model_file("contextual_bandit", ".pkl")
 
         # One weight vector per action — maps state to expected reward
         # Shape: (n_actions, state_size) = (2, 1287)
         self.weights = np.zeros((self.n_actions, self.state_size))
+        self.load()
 
     def normalize_state(self, state):
         state_array = np.array(state)
@@ -56,6 +62,40 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
     def record(self, image_id, state, action):
         """Called by run_sarsa() from pi_server to store state/action for this image"""
         self.history[image_id] = (state, action)
+
+    def save(self):
+        self.last_updated_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        save_pickle(
+            self.checkpoint_path,
+            {
+                "state_size": self.state_size,
+                "n_actions": self.n_actions,
+                "learning_rate": self.learning_rate,
+                "epsilon": self.epsilon,
+                "epsilon_decay": self.epsilon_decay,
+                "epsilon_min": self.epsilon_min,
+                "update_count": self.update_count,
+                "last_reward": self.last_reward,
+                "last_updated_at": self.last_updated_at,
+                "weights": self.weights,
+            },
+        )
+
+    def load(self):
+        checkpoint = load_pickle(self.checkpoint_path)
+        if checkpoint is None:
+            return
+
+        self.state_size = checkpoint.get("state_size", self.state_size)
+        self.n_actions = checkpoint.get("n_actions", self.n_actions)
+        self.learning_rate = checkpoint.get("learning_rate", self.learning_rate)
+        self.epsilon = checkpoint.get("epsilon", self.epsilon)
+        self.epsilon_decay = checkpoint.get("epsilon_decay", self.epsilon_decay)
+        self.epsilon_min = checkpoint.get("epsilon_min", self.epsilon_min)
+        self.update_count = checkpoint.get("update_count", self.update_count)
+        self.last_reward = checkpoint.get("last_reward", self.last_reward)
+        self.last_updated_at = checkpoint.get("last_updated_at", self.last_updated_at)
+        self.weights = checkpoint.get("weights", self.weights)
     
     def update(self, image_id, reward):
         """Update weights when reward/punishment comes back"""
@@ -79,6 +119,10 @@ class CONTEXTUALBANDITObject:  # rename per model e.g. DQNObject, PPOObject etc.
                 
         # Decay epsilon — explore less over time as model gets more confident
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+        self.update_count += 1
+        self.last_reward = reward
+        del self.history[image_id]
+        self.save()
         
         print(f"Updated weights for action {action} with reward {reward}")
         print(f"Prediction error: {error:.4f} | Epsilon: {self.epsilon:.4f}")
