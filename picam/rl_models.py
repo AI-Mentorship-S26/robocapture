@@ -63,6 +63,17 @@ def run_sarsa(image_id, state):
 def update_sarsa(image_id, reward):
     sarsa_object.update(image_id, reward)
 
+def nav_score_sarsa(image_id, state):
+ 
+    state_key = sarsa_object.get_state_key(state)
+    q = sarsa_object.get_q_values(state_key)              # [q0, q1]
+    exp_q = np.exp(np.array(q) - np.max(q))              # numerically stable
+    probs = exp_q / exp_q.sum()
+    # Record using the greedy action so reward updates are consistent
+    action = int(np.argmax(q))
+    sarsa_object.record(image_id, state, action)
+    return float(probs[1])
+
 
 # DQN
 def run_dqn(image_id, state):
@@ -155,3 +166,23 @@ def run_tiny_sac(image_id, state):
 
 def update_tiny_sac(image_id, reward):
     tiny_sac_object.update(image_id, reward)
+def nav_score_random(image_id, state):
+    return None
+
+def nav_score_contextual_bandit(image_id, state):
+    return None
+
+def nav_score_deep_contextual_bandit(image_id, state):
+    return None
+
+def nav_score_dqn(image_id, state):
+    return None
+
+def nav_score_ppo(image_id, state):
+    return None
+
+def nav_score_reinforce(image_id, state):
+    return None
+
+def nav_score_tiny_sac(image_id, state):
+    return None

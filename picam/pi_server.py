@@ -20,6 +20,11 @@ from rl_models import (
     run_aac, update_aac,
     run_tiny_sac, update_tiny_sac
 )
+#for navigation
+import threading
+import robot_rl_nav
+
+threading.Thread(target=robot_rl_nav.main, daemon=True).start()
 
 PI_PORT = 8765
 pipeline = ImagePreprocessingPipeline()
@@ -48,6 +53,7 @@ async def handle_backend(websocket):
         # Model switching
         if message.startswith("setModel:"):
             current_model = message.split(":")[1]
+            robot_rl_nav.set_current_model(current_model)
             print(f"Switched to model: {current_model}")
 
         # Capture image
