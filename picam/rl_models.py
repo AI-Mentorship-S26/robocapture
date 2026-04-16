@@ -34,6 +34,8 @@ def run_random(image_id, state):
     return random.randint(0, 1)
 def update_random(image_id, state):
     pass
+def nav_score_random(image_id, state):
+    return None  # stub
 
 # DEEP CONTEXTUAL BANDIT
 def run_deep_contextual_bandit(image_id, state):
@@ -62,7 +64,8 @@ def run_contextual_bandit(image_id, state):
 
 def update_contextual_bandit(image_id, reward):
     contextual_bandit_object.update(image_id, reward)
-
+def nav_score_contextual_bandit(image_id, state):
+    return None  # stub
   
 # SARSA
 def run_sarsa(image_id, state):
@@ -94,6 +97,8 @@ def run_dqn(image_id, state):
 def update_dqn(image_id, reward):
     dqn_object.update(image_id, reward)
 
+def nav_score_dqn(image_id, state):
+    return None  # stub
 
 # PPO
 PPO_EPSILON = 0.5  # explore randomly 50% of the time
@@ -118,6 +123,8 @@ def run_ppo(image_id, state):
 def update_ppo(image_id, reward):
     ppo_object.update(image_id, reward)    
 
+def nav_score_ppo(image_id, state):
+    return None  # stub
 
 # REINFORCE
 def run_reinforce(image_id, state):
@@ -136,6 +143,8 @@ def run_reinforce(image_id, state):
 def update_reinforce(image_id, reward):
     reinforce_object.update(image_id, reward)
 
+def nav_score_reinforce(image_id, state):
+    return None  # stub
 
 # AAC
 def run_aac(image_id, state):
@@ -144,6 +153,8 @@ def run_aac(image_id, state):
 
     if aac_object.actor_model is None:
         aac_object.record(image_id, state, 0)
+        return 0  # add this
+
         
     logits = aac_object.actor_model(state_tensor)
     m = torch.distributions.Categorical(logits=logits)
@@ -176,23 +187,6 @@ def run_tiny_sac(image_id, state):
 
 def update_tiny_sac(image_id, reward):
     tiny_sac_object.update(image_id, reward)
-def nav_score_random(image_id, state):
-    return None
-
-def nav_score_contextual_bandit(image_id, state):
-    return None
-
-def nav_score_deep_contextual_bandit(image_id, state):
-    return None
-
-def nav_score_dqn(image_id, state):
-    return None
-
-def nav_score_ppo(image_id, state):
-    return None
-
-def nav_score_reinforce(image_id, state):
-    return None
 
 def nav_score_tiny_sac(image_id, state):
-    return None
+    return None  # stub

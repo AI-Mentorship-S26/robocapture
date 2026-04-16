@@ -165,7 +165,7 @@ export default function DashboardPage() {
   const [user, setUser]           = useState<{ email?: string; id?: string } | null>(null);
   const [wsStatus, setWsStatus]   = useState<WsStatus>("connecting");
   const [activeView, setActiveView] = useState<NavView>("live");
-  const [activeModel, setActiveModel] = useState<RLModel>("random");
+  const [activeModel, setActiveModel] = useState<RLModel>("deep_contextual_bandit");
   const [stats, setStats]         = useState({ sent: 18, skipped: 34, epsilon: 0.22 });
   const [frameNumber, setFrameNumber] = useState(1247);
 const [stateVector, setStateVector] = useState<StateVector>({

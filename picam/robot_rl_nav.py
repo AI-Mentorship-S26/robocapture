@@ -57,6 +57,7 @@ from rl_models import (
     run_aac,               update_aac,               nav_score_aac,
     run_tiny_sac,          update_tiny_sac,           nav_score_tiny_sac,
 )
+is_navigating = False
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
@@ -365,19 +366,20 @@ def face_best_direction(best_dir: int, current_offset: int = 3):
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 def main():
+    global is_navigating
     print(f"Starting navigation loop  (model: {current_model})")
     cycle = 0
     try:
         while True:
+            is_navigating = True
             cycle += 1
             print(f"\n=== Cycle {cycle} ===")
 
-            # ── Phase 1: 360° survey ──────────────────────────────────────────
+            # Phase 1: 360° survey
             print("Surveying...")
             image_paths = survey_360()
-            # After this, robot faces 270° (3 right-turns from start-of-cycle).
 
-            # ── Phase 2: RL inference ─────────────────────────────────────────
+            # Phase 2: RL inference
             print("Running RL inference...")
             scores = query_rl_model(image_paths)
             print(f"  Scores: {[f'{s:.4f}' for s in scores]}  (model: {current_model})")
@@ -391,17 +393,14 @@ def main():
 
             print(f"  Best direction: {best_dir} ({best_dir * 90}°)")
 
-            # ── Phase 3: orient + drive ───────────────────────────────────────
+            # Phase 3: orient + drive
             face_best_direction(best_dir, current_offset=3)
             drive_forward(DRIVE_FWD_SEC)
-
-            # Robot is now at the new position, facing best_dir from last cycle.
-            # The next survey starts fresh from wherever it has stopped.
 
     except KeyboardInterrupt:
         print("\nInterrupted by user.")
     finally:
-        # Safe shutdown
+        is_navigating = False
         pi.write(STBY, 0)
         pi.set_PWM_dutycycle(PWMA, 0)
         pi.set_PWM_dutycycle(PWMB, 0)

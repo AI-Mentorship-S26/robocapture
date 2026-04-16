@@ -58,6 +58,14 @@ async def handle_backend(websocket):
 
         # Capture image
         elif message == "captureImage":
+                # Check if robot is navigating
+            if robot_rl_nav.is_navigating:
+                await websocket.send(json.dumps({
+                    "type": "no_send",
+                    "message": "Robot is navigating — manual capture disabled"
+                }))
+                continue
+            
             # Step 1: Generate image ID
             image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
