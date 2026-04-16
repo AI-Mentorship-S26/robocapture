@@ -375,7 +375,7 @@ const [stateVector, setStateVector] = useState<StateVector>({
         </aside>
 
         {/* ── Center Workspace ──────────────────────────────────────────────── */}
-        <main className="flex-1 flex flex-col overflow-y-auto px-6 py-5 gap-5 min-w-0">
+        <main className="flex-1 flex flex-col overflow-y-auto px-6 py-5 gap-5 min-w-0 bg-[#0F0F12] scrollbar-dark">
 
           <div className="flex items-center justify-between">
             <h1 className="text-sm font-semibold text-white/60">
