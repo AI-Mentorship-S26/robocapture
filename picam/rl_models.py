@@ -44,6 +44,16 @@ def run_deep_contextual_bandit(image_id, state):
 def update_deep_contextual_bandit(image_id, reward):
     deep_contextual_bandit_object.update(image_id, reward)
 
+def nav_score_deep_contextual_bandit(image_id, state):
+    q_values = deep_contextual_bandit_object.predict(state)
+    # softmax to convert Q values to probabilities
+    exp_q = np.exp(q_values - np.max(q_values))
+    probs = exp_q / exp_q.sum()
+    action = int(np.argmax(q_values))  # exploit best action
+    deep_contextual_bandit_object.record(image_id, state, action)
+    return float(probs[1])  # probability of send (action 1)
+
+
 # CONTEXTUAL BANDITS
 def run_contextual_bandit(image_id, state):
     action = contextual_bandit_object.choose_action(state)
