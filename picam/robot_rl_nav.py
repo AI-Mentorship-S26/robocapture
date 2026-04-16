@@ -104,7 +104,7 @@ NAV_SCORE_MAP = {
     "tiny_sac":          nav_score_tiny_sac,
 }
 
-current_model = "sarsa"          # matches pi_server.py default
+current_model = "deep_contextual_bandit"          # matches pi_server.py default
 pipeline      = ImagePreprocessingPipeline()
 
 def set_current_model(model_name: str):

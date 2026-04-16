@@ -29,7 +29,7 @@ threading.Thread(target=robot_rl_nav.main, daemon=True).start()
 PI_PORT = 8765
 pipeline = ImagePreprocessingPipeline()
 previous_image_path = None
-current_model = "random"  # default model
+current_model = "deep_contextual_bandit"  # default model
 
 # Maps model name to its run and update functions
 MODEL_MAP = {
