@@ -1,5 +1,6 @@
 import numpy as np
 from datetime import datetime
+from .persistence import load_pickle, model_file, save_pickle
 
 class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
     def __init__(self):
@@ -15,6 +16,11 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
         self.learning_rate = 0.1
         self.discount_factor = 0.9
         self.epsilon = 0.1
+        self.update_count = 0
+        self.last_reward = None
+        self.last_updated_at = None
+        self.checkpoint_path = model_file("sarsa", ".pkl")
+        self.load()
 
     def get_state_key(self, state):
         # Convert list of floats to tuple so it can be used as dict key
@@ -39,6 +45,34 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
     def record(self, image_id, state, action):
         """Called by run_sarsa() from pi_server to store state/action for this image"""
         self.history[image_id] = (state, action)
+
+    def save(self):
+        self.last_updated_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        save_pickle(
+            self.checkpoint_path,
+            {
+                "q_table": self.q_table,
+                "learning_rate": self.learning_rate,
+                "discount_factor": self.discount_factor,
+                "epsilon": self.epsilon,
+                "update_count": self.update_count,
+                "last_reward": self.last_reward,
+                "last_updated_at": self.last_updated_at,
+            },
+        )
+
+    def load(self):
+        checkpoint = load_pickle(self.checkpoint_path)
+        if checkpoint is None:
+            return
+
+        self.q_table = checkpoint.get("q_table", self.q_table)
+        self.learning_rate = checkpoint.get("learning_rate", self.learning_rate)
+        self.discount_factor = checkpoint.get("discount_factor", self.discount_factor)
+        self.epsilon = checkpoint.get("epsilon", self.epsilon)
+        self.update_count = checkpoint.get("update_count", self.update_count)
+        self.last_reward = checkpoint.get("last_reward", self.last_reward)
+        self.last_updated_at = checkpoint.get("last_updated_at", self.last_updated_at)
     
     def update(self, image_id, reward):
         """Called by update_sarsa() from pi_server when reward/punishment comes back from frontend"""
@@ -59,6 +93,10 @@ class SARSAObject:  # rename per model e.g. DQNObject, PPOObject etc.
         # we simplify: treat reward as the full target (so, discount_factor is 0)
         current_q = q_values[action]
         q_values[action] = current_q + self.learning_rate * (reward - current_q)
+        self.update_count += 1
+        self.last_reward = reward
+        del self.history[image_id]
+        self.save()
 
         print(f"Updating model with reward {reward} for image {image_id}")
         # DEBUG

@@ -86,21 +86,35 @@ def update_dqn(image_id, reward):
 
 
 # PPO
+PPO_EPSILON = 0.5  # explore randomly 50% of the time
+
 def run_ppo(image_id, state):
-    state_tensor = torch.from_numpy(np.array(state)).float()
-    logits = ppo_object.actor_model(state_tensor)
-    m = torch.distributions.Categorical(logits=logits)
-    action = m.sample().item()
-    
+    if ppo_object.actor_model is None:
+        ppo_object.record(image_id, state, 0)  # triggers lazy model init
+
+    # Epsilon-greedy: force exploration so model doesn't get stuck on action 0
+    if random.random() < PPO_EPSILON:
+        action = random.randint(0, 1)
+    else:
+        state_tensor = torch.from_numpy(np.array(state)).float()
+        with torch.no_grad():  # don't build a compute graph during inference
+            logits = ppo_object.actor_model(state_tensor)
+        m = torch.distributions.Categorical(logits=logits)
+        action = m.sample().item()
+
     ppo_object.record(image_id, state, action)
     return action
 
-def update_ppo(image_id, reward): 
-    ppo_object.update(image_id, reward)
+def update_ppo(image_id, reward):
+    ppo_object.update(image_id, reward)    
 
 
 # REINFORCE
 def run_reinforce(image_id, state):
+    if reinforce_object.actor_model is None:
+        reinforce_object.record(image_id, state, 0)
+        return 0
+    
     state_tensor = torch.from_numpy(np.array(state)).float()
     logits = reinforce_object.actor_model(state_tensor)
     m = torch.distributions.Categorical(logits=logits)
