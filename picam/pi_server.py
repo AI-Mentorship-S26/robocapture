@@ -27,12 +27,11 @@ nav_image_queue = asyncio.Queue()
 def nav_image_callback(image_id, b64):
     nav_image_queue.put_nowait((image_id, b64))
 
-robot_rl_nav.set_send_callback(nav_image_callback)
 
 #for navigation
 import threading
 import robot_rl_nav
-
+robot_rl_nav.set_send_callback(nav_image_callback)
 threading.Thread(target=robot_rl_nav.main, daemon=True).start()
 
 PI_PORT = 8765
