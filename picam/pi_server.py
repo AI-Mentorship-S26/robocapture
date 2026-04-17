@@ -20,6 +20,15 @@ from rl_models import (
     run_aac, update_aac,
     run_tiny_sac, update_tiny_sac
 )
+
+# Queue for nav images to send to frontend
+nav_image_queue = asyncio.Queue()
+
+def nav_image_callback(image_id, b64):
+    nav_image_queue.put_nowait((image_id, b64))
+
+robot_rl_nav.set_send_callback(nav_image_callback)
+
 #for navigation
 import threading
 import robot_rl_nav
@@ -47,102 +56,119 @@ MODEL_MAP = {
 async def handle_backend(websocket):
     global previous_image_path, current_model
     print("Backend connected!")
-    async for message in websocket:
-        print(f"Received: {message}")
 
-        # Model switching
-        if message.startswith("setModel:"):
-            current_model = message.split(":")[1]
-            robot_rl_nav.set_current_model(current_model)
-            print(f"Switched to model: {current_model}")
+    # Task to forward nav images to frontend
+    async def forward_nav_images():
+        while True:
+            image_id, b64 = await nav_image_queue.get()
+            await websocket.send(json.dumps({
+                "type": "image",
+                "format": "image/jpeg",
+                "data": b64,
+                "image_id": image_id
+            }))
 
-        # Capture image
-        elif message == "captureImage":
+    nav_task = asyncio.create_task(forward_nav_images())
+
+    try:
+        async for message in websocket:
+            print(f"Received: {message}")
+
+            # Model switching
+            if message.startswith("setModel:"):
+                current_model = message.split(":")[1]
+                robot_rl_nav.set_current_model(current_model)
+                print(f"Switched to model: {current_model}")
+
+            # Capture image
+            elif message == "captureImage":
                 # Check if robot is navigating
-            if robot_rl_nav.is_navigating:
-                await websocket.send(json.dumps({
-                    "type": "no_send",
-                    "message": "Robot is navigating — manual capture disabled"
-                }))
-                continue
-            
-            # Step 1: Generate image ID
-            image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                if robot_rl_nav.is_navigating:
+                    await websocket.send(json.dumps({
+                        "type": "no_send",
+                        "message": "Robot is navigating — manual capture disabled"
+                    }))
+                    continue
 
-            # Step 2: Capture image
-            capture_result = run_capture()
-            if capture_result["type"] == "error":
-                await websocket.send(json.dumps(capture_result))
-                continue
+                # Step 1: Generate image ID
+                image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
 
-            current_image_path = capture_result["image_path"]
+                # Step 2: Capture image
+                capture_result = run_capture()
+                if capture_result["type"] == "error":
+                    await websocket.send(json.dumps(capture_result))
+                    continue
 
-            # Step 3: Run preprocessing pipeline
-            should_send, results = pipeline.process_image(
-                current_image_path,
-                previous_image_path,
-                verbose=True
-            )
-            previous_image_path = current_image_path
+                current_image_path = capture_result["image_path"]
 
-            if not should_send:
-                if not results['stage_0_5']['has_significant_change']:
-                    reason = "Image too similar to previous frame"
-                elif not results['stage_1']['passes']:
-                    reason = "Image quality too low (too dark or blurry)"
+                # Step 3: Run preprocessing pipeline
+                should_send, results = pipeline.process_image(
+                    current_image_path,
+                    previous_image_path,
+                    verbose=True
+                )
+                previous_image_path = current_image_path
+
+                if not should_send:
+                    if not results['stage_0_5']['has_significant_change']:
+                        reason = "Image too similar to previous frame"
+                    elif not results['stage_1']['passes']:
+                        reason = "Image quality too low (too dark or blurry)"
+                    else:
+                        reason = "Image rejected by preprocessing pipeline"
+
+                    await websocket.send(json.dumps({
+                        "type": "no_send",
+                        "message": reason
+                    }))
+                    continue
+
+                # Step 4: Build state
+                state = [
+                    results['stage_0_5']['change_percentage'],
+                    results['stage_1']['brightness'],
+                    results['stage_1']['saturation'],
+                    results['stage_1']['sharpness'],
+                    results['stage_1']['edge_count'],
+                    results['stage_1']['mean_frequency'],
+                    results['stage_2']['embedding_magnitude'],
+                    *results['embedding']
+                ]
+
+                # Step 5: Run RL model
+                run_fn, _ = MODEL_MAP[current_model]
+                decision = run_fn(image_id, state)
+                print(f"Model: {current_model} | Decision: {decision}")
+
+                if decision == 1:
+                    with open(current_image_path, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode("utf-8")
+                    await websocket.send(json.dumps({
+                        "type": "image",
+                        "format": "image/jpeg",
+                        "data": b64,
+                        "image_id": image_id
+                    }))
                 else:
-                    reason = "Image rejected by preprocessing pipeline"
+                    await websocket.send(json.dumps({
+                        "type": "no_send",
+                        "message": "RL model decided not to send image"
+                    }))
 
-                await websocket.send(json.dumps({
-                    "type": "no_send",
-                    "message": reason
-                }))
-                continue
+            # Reward/punishment from backend
+            elif message.startswith("reward:") or message.startswith("punishment:"):
+                parts = message.split(":")
+                feedback_type = parts[0]
+                image_id = parts[1]
 
-            # Step 4: Build state
-            state = [
-                results['stage_0_5']['change_percentage'],
-                results['stage_1']['brightness'],
-                results['stage_1']['saturation'],
-                results['stage_1']['sharpness'],
-                results['stage_1']['edge_count'],
-                results['stage_1']['mean_frequency'],
-                results['stage_2']['embedding_magnitude'],
-                *results['embedding']
-            ]
+                reward = 1 if feedback_type == "reward" else -1
 
-            # Step 5: Run RL model
-            run_fn, _ = MODEL_MAP[current_model]
-            decision = run_fn(image_id, state)
-            print(f"Model: {current_model} | Decision: {decision}")
+                _, update_fn = MODEL_MAP[current_model]
+                update_fn(image_id, reward)
+                print(f"Updated {current_model} with reward {reward} for image {image_id}")
 
-            if decision == 1:
-                with open(current_image_path, "rb") as f:
-                    b64 = base64.b64encode(f.read()).decode("utf-8")
-                await websocket.send(json.dumps({
-                    "type": "image",
-                    "format": "image/jpeg",
-                    "data": b64,
-                    "image_id": image_id
-                }))
-            else:
-                await websocket.send(json.dumps({
-                    "type": "no_send",
-                    "message": "RL model decided not to send image"
-                }))
-
-        # Reward/punishment from backend
-        elif message.startswith("reward:") or message.startswith("punishment:"):
-            parts = message.split(":")
-            feedback_type = parts[0]   # "reward" or "punishment"
-            image_id = parts[1]        # the image ID
-
-            reward = 1 if feedback_type == "reward" else -1
-
-            _, update_fn = MODEL_MAP[current_model]
-            update_fn(image_id, reward)
-            print(f"Updated {current_model} with reward {reward} for image {image_id}")
-
+    finally:
+        nav_task.cancel()
 
 def run_capture():
     try:

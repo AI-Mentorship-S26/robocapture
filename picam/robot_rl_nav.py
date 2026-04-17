@@ -123,6 +123,11 @@ def set_current_model(model_name: str):
     current_model = model_name
     print(f"  [Nav] Active model switched to: {current_model}")
 
+    send_image_callback = None
+    def set_send_callback(callback):
+        global send_image_callback
+        send_image_callback = callback
+
 # ── pigpio init ────────────────────────────────────────────────────────────────
 
 pi = pigpio.pi()
@@ -262,18 +267,7 @@ def _score_for_direction(run_fn, image_id: str, state: list) -> float:
     return float(run_fn(image_id, state))
 
 
-def query_rl_model(image_paths: list[str]) -> list[float]:
-    """
-    Run the preprocessing pipeline + active RL model on each of the 4 images.
-
-    Returns
-    -------
-    scores : list of 4 floats in [0.0, 1.0]
-        Higher = more confidence this is a good direction to move.
-        Implemented models (SARSA, PPO, AAC) return real probabilities.
-        Stub / binary models return 0.0 or 1.0.
-        Pipeline-rejected directions always return 0.0.
-    """
+def query_rl_model(image_paths: list[str], websocket_send_fn=None) -> list[float]:
     run_fn, _ = MODEL_MAP[current_model]
     scores    = []
     prev_path = None
@@ -307,11 +301,22 @@ def query_rl_model(image_paths: list[str]) -> list[float]:
             *results['embedding'],
         ]
 
+        # Get nav score for direction decision
         score = _score_for_direction(run_fn, image_id, state)
         print(f"  Dir {direction} ({direction*90}°): model={current_model} score={score:.4f}")
         scores.append(score)
 
-    return scores   # [s0, s1, s2, s3] — floats in [0.0, 1.0]
+        # RL send/no-send decision
+        rl_decision = run_fn(image_id, state)
+        print(f"  Dir {direction}: RL decision = {rl_decision}")
+
+        if rl_decision == 1 and send_image_callback:
+            import base64
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+            send_image_callback(image_id, b64)
+
+    return scores
 
 # ── Direction selection ────────────────────────────────────────────────────────
 
