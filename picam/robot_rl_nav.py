@@ -58,7 +58,11 @@ from rl_models import (
     run_tiny_sac,          update_tiny_sac,           nav_score_tiny_sac,
 )
 is_navigating = False
-
+#----
+send_image_callback = None
+def set_send_callback(callback):
+    global send_image_callback
+    send_image_callback = callback
 # ── Configuration ──────────────────────────────────────────────────────────────
 
 DRIVE_SPEED   = 200        # PWM value 0-255 while going forward
@@ -123,10 +127,7 @@ def set_current_model(model_name: str):
     current_model = model_name
     print(f"  [Nav] Active model switched to: {current_model}")
 
-    send_image_callback = None
-    def set_send_callback(callback):
-        global send_image_callback
-        send_image_callback = callback
+
 
 # ── pigpio init ────────────────────────────────────────────────────────────────
 
