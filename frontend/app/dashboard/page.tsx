@@ -55,6 +55,8 @@ export default function DashboardPage() {
   const [capturedImageSrc, setCapturedImageSrc] = useState("");
   const [actionTaken, setActionTaken] = useState(false);
   const [currentImageId, setCurrentImageId]     = useState("");
+  const [currentState, setCurrentState]         = useState<number[]>([]);
+  const [currentFeatures, setCurrentFeatures]   = useState<Record<string, number>>({});
   const [showLogoutModal, setShowLogoutModal]   = useState(false);
   const [uploadStatus, setUploadStatus]         = useState<"idle" | "uploading" | "saved" | "error">("idle");
   const [galleryImages, setGalleryImages]       = useState<GalleryImage[]>([]);
@@ -81,6 +83,8 @@ export default function DashboardPage() {
           setWsMessage("Image received!");
           setCapturedImageSrc(`data:${data.format};base64,${data.data}`);
           setCurrentImageId(data.image_id);
+          setCurrentState(data.state ?? []);
+          setCurrentFeatures(data.features ?? {});
           setFrameNumber((n) => n + 1);
           setActionTaken(false);
           // Wire real pipeline features to the state vector display
@@ -136,22 +140,29 @@ export default function DashboardPage() {
       if (socketRef.current?.readyState === WebSocket.OPEN) {
         socketRef.current.send(`${action === "+R" ? "reward" : "punishment"}:${currentImageId}`);
       }
-      if (action === "+R" && user?.id) {
+      if (user?.id) {
         setUploadStatus("uploading");
+        const label = action === "+R" ? 1 : -1;
         try {
-          const storagePath = `${user.id}/${currentImageId}.jpg`;
-          const res  = await fetch(capturedImageSrc);
-          const blob = await res.blob();
-          const { error: storageError } = await supabase.storage
-            .from("robocapture-images")
-            .upload(storagePath, blob, { contentType: "image/jpeg", upsert: false });
-          if (!storageError) {
-            await supabase.from("captured_images").insert({
-              user_id: user.id, image_id: currentImageId,
-              storage_path: storagePath, rl_model: activeModel,
-            });
+          if (action === "+R") {
+            const storagePath = `${user.id}/${currentImageId}.jpg`;
+            const res  = await fetch(capturedImageSrc);
+            const blob = await res.blob();
+            await supabase.storage
+              .from("robocapture-images")
+              .upload(storagePath, blob, { contentType: "image/jpeg", upsert: false });
           }
-          setUploadStatus(storageError ? "error" : "saved");
+
+          const embedding = currentState.slice(7);
+          const { error } = await supabase.from("image_vectors").insert({
+            user_id:   user.id,
+            image_id:  currentImageId,
+            label,
+            rl_model:  activeModel,
+            embedding: `[${embedding.join(",")}]`,
+            features:  currentFeatures,
+          });
+          setUploadStatus(error ? "error" : "saved");
         } catch {
           setUploadStatus("error");
         }
@@ -159,7 +170,7 @@ export default function DashboardPage() {
     } else {
       setStats((s) => ({ ...s, skipped: s.skipped + 1 }));
     }
-  }, [capturedImageSrc, actionTaken, currentImageId, user, activeModel]);
+  }, [capturedImageSrc, actionTaken, currentImageId, currentState, currentFeatures, user, activeModel]);
 
   // Gallery fetch — zip signed URLs with row metadata before filtering failures
   useEffect(() => {
