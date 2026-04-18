@@ -69,7 +69,7 @@ DRIVE_SPEED   = 200        # PWM value 0-255 while going forward
 TURN_SPEED    = 150        # PWM value 0-255 while turning
 TURN_90_SEC   = 0.9        # seconds for a 90° turn  (tune on your surface)
 DRIVE_FWD_SEC = 1.5        # seconds to drive forward each cycle
-STABILISE_SEC = 0.3        # pause after stopping before taking a photo
+STABILISE_SEC = 0.8        # pause after stopping before taking a photo
 
 # ── Pin definitions ────────────────────────────────────────────────────────────
 
