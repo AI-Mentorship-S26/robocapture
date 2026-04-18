@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import random
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import deque
 from .persistence import load_torch, model_file, save_torch
 
@@ -100,7 +100,7 @@ class DQNObject:
         self.history[image_id] = (state, action)
 
     def save(self) -> None:
-        self.last_updated_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        self.last_updated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         save_torch(
             self.checkpoint_path,
             {
@@ -175,37 +175,27 @@ class DQNObject:
     # ------------------------------------------------------------------
 
     def _replay(self) -> None:
-        """Sample a mini-batch and perform one gradient step."""
+        """Sample a mini-batch and perform one vectorised gradient step."""
         if len(self.memory) < self.batch_size:
             return
 
         batch = random.sample(self.memory, self.batch_size)
+        states, actions, rewards, _ = zip(*batch)  # next_state always None (terminal)
+
+        state_batch  = torch.FloatTensor(states)          # (B, STATE_SIZE)
+        action_batch = torch.LongTensor(actions)           # (B,)
+        reward_batch = torch.FloatTensor(rewards)          # (B,)
 
         self.model.train()
-        total_loss = torch.tensor(0.0)
+        current_qs = self.model(state_batch)               # (B, ACTION_SIZE)
+        target_qs  = current_qs.clone().detach()
 
-        for state, action, reward, next_state in batch:
-            s = torch.FloatTensor(state).unsqueeze(0)  # (1, STATE_SIZE)
+        # Terminal transitions: target = reward (no future Q contribution)
+        target_qs[torch.arange(len(actions)), action_batch] = reward_batch
 
-            if next_state is not None:
-                with torch.no_grad():
-                    ns = torch.FloatTensor(next_state).unsqueeze(0)
-                    best_next_q = torch.max(self.model(ns)).item()
-                target_q = reward + self.gamma * best_next_q
-            else:
-                # Terminal — no future reward
-                target_q = reward
-
-            current_qs = self.model(s)                         # (1, ACTION_SIZE)
-            target_qs = current_qs.clone().detach()
-            target_qs[0][action] = target_q                    # only correct taken action
-
-            loss = self.loss_fn(current_qs, target_qs)
-            total_loss = total_loss + loss
-
-        # Single gradient step over accumulated loss
+        loss = self.loss_fn(current_qs, target_qs)
         self.optimizer.zero_grad()
-        total_loss.backward()
+        loss.backward()
         self.optimizer.step()
 
         if self.epsilon > self.epsilon_min:

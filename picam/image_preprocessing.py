@@ -64,8 +64,9 @@ class ChangeDetector:
         total_pixels = frame_diff.size
         change_percentage = (changed_pixels / total_pixels) * 100
         
-        # Always update internal state for the next potential call
-        self.previous_frame = current_frame.copy()
+        # Only maintain internal state when not using an explicit previous frame
+        if explicit_previous_frame is None:
+            self.previous_frame = current_frame.copy()
         
         has_change = change_percentage > self.difference_threshold
         
@@ -198,8 +199,8 @@ class SemanticFeatureExtractor:
         self.model.eval()
         
         self.model.classifier = torch.nn.Identity()
-
-        #removed setgrad false        
+        for p in self.model.parameters():
+            p.requires_grad_(False)
         
         self.transform = transforms.Compose([
             transforms.Resize((224, 224)),

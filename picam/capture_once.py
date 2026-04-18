@@ -16,5 +16,5 @@ try:
     sys.exit(0)
 
 except Exception as e:
-    print(f"ERROR: {e}")
+    print(f"ERROR: {e}", file=sys.stderr)
     sys.exit(1)
