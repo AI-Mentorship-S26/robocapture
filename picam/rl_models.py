@@ -148,18 +148,11 @@ def nav_score_reinforce(image_id, state):
 def run_aac(image_id, state):
     if aac_object.actor_model is None:
         aac_object.record(image_id, state, 0)
-<<<<<<< Updated upstream
-        return 0  # add this
-
-        
-    logits = aac_object.actor_model(state_tensor)
-=======
         return 0
 
     state_tensor = torch.from_numpy(np.array(state)).float()
     with torch.no_grad():
         logits = aac_object.actor_model(state_tensor)
->>>>>>> Stashed changes
     m = torch.distributions.Categorical(logits=logits)
     action = m.sample().item()
 
