@@ -34,7 +34,6 @@ export default function DashboardPage() {
   const socketRef = useRef<WebSocket | null>(null);
   const router    = useRouter();
 
-<<<<<<< Updated upstream
   const handleLogout = useCallback(async () => {
     await supabase.auth.signOut();
     router.push("/login");
@@ -45,13 +44,6 @@ export default function DashboardPage() {
   const [activeView, setActiveView] = useState<NavView>("live");
   const [activeModel, setActiveModel] = useState<RLModel>("deep_contextual_bandit");
   const [stats, setStats]         = useState({ sent: 18, skipped: 34, epsilon: 0.22 });
-=======
-  const [user, setUser]               = useState<{ email?: string; id?: string } | null>(null);
-  const [wsStatus, setWsStatus]       = useState<WsStatus>("connecting");
-  const [activeView, setActiveView]   = useState<NavView>("live");
-  const [activeModel, setActiveModel] = useState<RLModel>("random");
-  const [stats, setStats]             = useState({ sent: 18, skipped: 34 });
->>>>>>> Stashed changes
   const [frameNumber, setFrameNumber] = useState(1247);
   const [stateVector, setStateVector] = useState<StateVector>({
     entropy: 0, edgeDensity: 0, novelty: 0, opticalFlow: 0,
@@ -224,11 +216,6 @@ export default function DashboardPage() {
     }
   }, []);
 
-  const handleLogout = useCallback(async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  }, [router]);
-
   const wsColor = { connected: "bg-emerald-400", connecting: "bg-yellow-400 animate-pulse", disconnected: "bg-white/20", error: "bg-rose-400" }[wsStatus];
   const wsLabel = { connected: "Robot connected", connecting: "Connecting…", disconnected: "Disconnected", error: "Connection error" }[wsStatus];
 
@@ -283,60 +270,8 @@ export default function DashboardPage() {
           onLogout={() => setShowLogoutModal(true)}
         />
 
-<<<<<<< Updated upstream
-          {/* RL Model */}
-          <div className="px-3 py-4 border-t border-white/[0.06]">
-            <p className="text-[9px] font-semibold text-white/20 tracking-[0.2em] uppercase px-2 mb-2">RL Model</p>
-            <div className="flex flex-col gap-1.5">
-              {([
-                { id: "random",    name: "Random",                sub: "Baseline · no learning" },
-                { id: "deep_contextual_bandit", name: "Deep Contextual Bandit", sub: "DCB · neural network" },
-                { id: "contextual_bandit", name: "Contextual Bandit", sub: "CB · sample efficient" },
-                { id: "sarsa",     name: "Deep SARSA",             sub: "SARSA · on-policy" },
-                { id: "dqn",       name: "Deep Q-Network",         sub: "DQN · off-policy" },
-                { id: "ppo",       name: "Proximal Policy Opt.",   sub: "PPO · policy gradient" },
-                { id: "reinforce", name: "REINFORCE",              sub: "PG · Monte Carlo" },
-                { id: "aac",       name: "Advantage Actor-Critic", sub: "AAC · actor-critic" },
-                { id: "tiny_sac",  name: "Tiny SAC",               sub: "SAC · entropy-based" },
-              ] as { id: RLModel; name: string; sub: string }[]).map(({ id, name, sub }) => (
-                <button
-                  key={id}
-                  onClick={() => {
-                    setActiveModel(id)
-                    if (socketRef.current?.readyState === WebSocket.OPEN) {
-                      socketRef.current.send(`setModel:${id}`);
-                      console.log(`Sent: setModel:${id}`);
-                    }
-                  }}
-                  className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all duration-150 cursor-pointer text-left w-full border ${
-                    activeModel === id
-                      ? "bg-blue-500/10 border-blue-500/25 text-blue-400"
-                      : "border-transparent text-white/30 hover:text-white/50 hover:bg-white/[0.03]"
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeModel === id ? "bg-blue-400" : "bg-white/15"}`} />
-                  <div>
-                    <p className="text-[11px] font-medium leading-tight">{name}</p>
-                    <p className="font-mono text-[9px] mt-0.5 opacity-60">{sub}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-2.5 py-2 mt-3 w-full rounded-md text-white/25 hover:text-rose-400/70 hover:bg-rose-500/[0.05] transition-colors duration-150 cursor-pointer text-xs"
-            >
-              <LogOutIcon size={13} />Sign out
-            </button>
-          </div>
-        </aside>
-
         {/* ── Center Workspace ──────────────────────────────────────────────── */}
         <main className="flex-1 flex flex-col overflow-y-auto px-6 py-5 gap-5 min-w-0 bg-[#0F0F12] scrollbar-dark">
-
-=======
-        <main className="flex-1 flex flex-col overflow-y-auto px-6 py-5 gap-5 min-w-0">
->>>>>>> Stashed changes
           <div className="flex items-center justify-between">
             <h1 className="text-sm font-semibold text-white/60">
               Session <span className="font-mono text-blue-400">#0042</span>
