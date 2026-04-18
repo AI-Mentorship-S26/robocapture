@@ -152,12 +152,14 @@ export default function DashboardPage() {
               .from("robocapture-images")
               .upload(storagePath, blob, { contentType: "image/jpeg", upsert: false });
             if (storageError && storageError.message !== "The resource already exists") {
+              console.error("[storage error]", storageError);
               setUploadStatus("error");
               return;
             }
           }
 
           if (currentState.length < 8) {
+            console.error("[embedding error] currentState length:", currentState.length);
             setUploadStatus("error");
             return;
           }
@@ -170,8 +172,10 @@ export default function DashboardPage() {
             embedding: `[${embedding.join(",")}]`,
             features:  currentFeatures,
           });
+          console.error("[insert result]", error);
           setUploadStatus(error ? "error" : "saved");
-        } catch {
+        } catch (e) {
+          console.error("[catch error]", e);
           setUploadStatus("error");
         }
       }
