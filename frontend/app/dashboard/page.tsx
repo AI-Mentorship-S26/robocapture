@@ -179,6 +179,8 @@ const [stateVector, setStateVector] = useState<StateVector>({
   const [actionTaken, setActionTaken] = useState(false);
   const [currentImageId, setCurrentImageId] = useState<string>("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [navigationStarted, setNavigationStarted] = useState(false);
+
 
   // Auth
   useEffect(() => {
@@ -253,6 +255,16 @@ const [stateVector, setStateVector] = useState<StateVector>({
       setWsMessage("Not connected — check if the backend is running.");
     }
   }, []);
+
+  const handleStartNavigation = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send("startNavigation");
+      setNavigationStarted(true);
+      setWsMessage("Navigation started!");
+    } else {
+      setWsMessage("Not connected — check if the backend is running.");
+    }
+  }, []); 
 
   const wsColor = { connected: "bg-emerald-400", connecting: "bg-yellow-400 animate-pulse", disconnected: "bg-white/20", error: "bg-rose-400" }[wsStatus];
   const wsLabel = { connected: "Robot connected", connecting: "Connecting…", disconnected: "Disconnected", error: "Connection error" }[wsStatus];
@@ -496,13 +508,25 @@ const [stateVector, setStateVector] = useState<StateVector>({
                 <span className="text-[11px] text-white/25">Received {receivedAgo}</span>
               </div>
 
-              {/* Capture button */}
-              <button
-                onClick={handleCaptureImage}
-                className="w-full py-2.5 rounded-full bg-white/90 dark:bg-white text-black text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
-              >
-                Capture Image
-              </button>
+              
+              {/* Navigation / Capture buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleStartNavigation}
+                  disabled={navigationStarted}
+                  className="flex-1 py-2.5 rounded-full bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
+                >
+                  {navigationStarted ? "Navigation Running..." : "Start Navigation"}
+                </button>
+                <button
+                  onClick={handleCaptureImage}
+                  disabled={navigationStarted}
+                  className="flex-1 py-2.5 rounded-full bg-white/90 text-black text-sm font-semibold hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
+                >
+                  Capture Image
+                </button>
+              </div>
+
             </div>
 
             {/* Login required overlay */}
