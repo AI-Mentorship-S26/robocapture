@@ -115,7 +115,17 @@ async def handle_backend(websocket):
                     "type": "image",
                     "format": "image/jpeg",
                     "data": b64,
-                    "image_id": image_id
+                    "image_id": image_id,
+                    "features": {
+                        "change_pct":          results['stage_0_5']['change_percentage'],
+                        "brightness":          results['stage_1']['brightness'],
+                        "saturation":          results['stage_1']['saturation'],
+                        "sharpness":           results['stage_1']['sharpness'],
+                        "edge_count":          results['stage_1']['edge_count'],
+                        "mean_frequency":      results['stage_1']['mean_frequency'],
+                        "embedding_magnitude": results['stage_2']['embedding_magnitude'],
+                    },
+                    "state": state,
                 }))
             else:
                 await websocket.send(json.dumps({
