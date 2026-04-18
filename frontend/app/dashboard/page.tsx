@@ -148,11 +148,19 @@ export default function DashboardPage() {
             const storagePath = `${user.id}/${currentImageId}.jpg`;
             const res  = await fetch(capturedImageSrc);
             const blob = await res.blob();
-            await supabase.storage
+            const { error: storageError } = await supabase.storage
               .from("robocapture-images")
               .upload(storagePath, blob, { contentType: "image/jpeg", upsert: false });
+            if (storageError && storageError.message !== "The resource already exists") {
+              setUploadStatus("error");
+              return;
+            }
           }
 
+          if (currentState.length < 8) {
+            setUploadStatus("error");
+            return;
+          }
           const embedding = currentState.slice(7);
           const { error } = await supabase.from("image_vectors").insert({
             user_id:   user.id,
