@@ -131,9 +131,4 @@ class DeepContextualBanditObject:
         )
 
 
-<<<<<<< Updated upstream
-# Single instance
 deep_contextual_bandit_object = DeepContextualBanditObject()
-=======
-deep_contextual_bandit_object = DeepContextualBanditObject()
->>>>>>> Stashed changes
