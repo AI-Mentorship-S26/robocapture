@@ -152,14 +152,12 @@ export default function DashboardPage() {
               .from("robocapture-images")
               .upload(storagePath, blob, { contentType: "image/jpeg", upsert: false });
             if (storageError && storageError.message !== "The resource already exists") {
-              console.error("[storage error]", storageError);
               setUploadStatus("error");
               return;
             }
           }
 
           if (currentState.length < 8) {
-            console.error("[embedding error] currentState length:", currentState.length);
             setUploadStatus("error");
             return;
           }
@@ -172,10 +170,8 @@ export default function DashboardPage() {
             embedding: `[${embedding.join(",")}]`,
             features:  currentFeatures,
           });
-          console.error("[insert result]", error);
           setUploadStatus(error ? "error" : "saved");
-        } catch (e) {
-          console.error("[catch error]", e);
+        } catch {
           setUploadStatus("error");
         }
       }
@@ -193,8 +189,9 @@ export default function DashboardPage() {
       setGalleryLoading(true);
       try {
         const { data: rows, error } = await supabase
-          .from("captured_images")
-          .select("image_id, storage_path, rl_model, created_at")
+          .from("image_vectors")
+          .select("image_id, rl_model, created_at")
+          .eq("label", 1)
           .order("created_at", { ascending: false })
           .limit(200);
 
@@ -203,9 +200,10 @@ export default function DashboardPage() {
           return;
         }
 
+        const storagePaths = rows.map((r) => `${user.id}/${r.image_id}.jpg`);
         const { data: signed } = await supabase.storage
           .from("robocapture-images")
-          .createSignedUrls(rows.map((r) => r.storage_path), 3600);
+          .createSignedUrls(storagePaths, 3600);
 
         if (!cancelled && signed) {
           // Zip before filtering so index i always matches rows[i]
