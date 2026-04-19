@@ -72,8 +72,29 @@ export default function DashboardPage() {
 
   // WebSocket
   useEffect(() => {
-    const socket = new WebSocket(PI_WS_URL);
-    socket.onopen = () => setWsStatus("connected");
+    let socket: WebSocket;
+    try {
+      socket = new WebSocket(PI_WS_URL);
+    } catch {
+      setWsStatus("error");
+      setWsMessage(`Invalid WebSocket URL: "${PI_WS_URL}". Check NEXT_PUBLIC_PI_WS_URL in .env.local.`);
+      return;
+    }
+
+    const connectionTimeout = setTimeout(() => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        socket.close();
+        setWsStatus("error");
+        setWsMessage(
+          `Connection timed out after 5s — could not reach ${PI_WS_URL}. ` +
+          `Check: (1) Pi server is running (python picam/pi_server.py), ` +
+          `(2) Pi and this machine are on the same network, ` +
+          `(3) IP in .env.local is correct.`
+        );
+      }
+    }, 5000);
+
+    socket.onopen = () => { clearTimeout(connectionTimeout); setWsStatus("connected"); setWsMessage(""); };
     socket.onmessage = (event) => {
       setReceivedAgo("0.1s ago");
       try {
@@ -106,10 +127,26 @@ export default function DashboardPage() {
         // non-JSON message, ignore
       }
     };
-    socket.onclose = () => setWsStatus("disconnected");
-    socket.onerror = () => setWsStatus("error");
+    socket.onclose = (event) => {
+      clearTimeout(connectionTimeout);
+      setWsStatus("disconnected");
+      if (event.code === 1006) {
+        setWsMessage(
+          `Lost connection abnormally (code 1006) — Pi server likely crashed or is unreachable at ${PI_WS_URL}.`
+        );
+      } else if (event.code !== 1000) {
+        setWsMessage(`Disconnected (code ${event.code}). Refresh to reconnect.`);
+      }
+    };
+    socket.onerror = () => {
+      setWsStatus("error");
+      setWsMessage(
+        `WebSocket error — cannot connect to ${PI_WS_URL}. ` +
+        `Verify the Pi server is running and the IP/port is correct.`
+      );
+    };
     socketRef.current = socket;
-    return () => socket.close();
+    return () => { clearTimeout(connectionTimeout); socket.close(); };
   }, []);
 
   const handleModelChange = useCallback((model: RLModel) => {
