@@ -104,6 +104,7 @@ async def handle_backend(websocket):
             ]
 
             # Step 5: Run RL model
+            state = [float(x) for x in state]
             run_fn, _ = MODEL_MAP[current_model]
             decision = run_fn(image_id, state)
             print(f"Model: {current_model} | Decision: {decision}")
