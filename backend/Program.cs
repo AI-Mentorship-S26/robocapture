@@ -82,7 +82,8 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
                 // Response comes back through the persistent listener automatically
             } else if (message.StartsWith("reward:") || 
                     message.StartsWith("punishment:") || 
-                    message.StartsWith("setModel:")) {
+                    message.StartsWith("setModel:") ||
+                    message == "startNavigation") {
                 await SendToPiPersistent(message);
             } else {
                 var payload = new { type = "text", message = "A regular message from backend!" };

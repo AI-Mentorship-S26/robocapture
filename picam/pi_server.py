@@ -32,7 +32,6 @@ def nav_image_callback(image_id, b64):
 import threading
 import robot_rl_nav
 robot_rl_nav.set_send_callback(nav_image_callback)
-threading.Thread(target=robot_rl_nav.main, daemon=True).start()
 
 PI_PORT = 8765
 pipeline = ImagePreprocessingPipeline()
@@ -78,6 +77,11 @@ async def handle_backend(websocket):
                 current_model = message.split(":")[1]
                 robot_rl_nav.set_current_model(current_model)
                 print(f"Switched to model: {current_model}")
+
+            elif message == "startNavigation":
+                if not robot_rl_nav.is_navigating:
+                    threading.Thread(target=robot_rl_nav.main, daemon=True).start()
+                    print("Navigation started!")
 
             # Capture image
             elif message == "captureImage":
