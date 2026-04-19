@@ -5,9 +5,17 @@ import base64
 import json
 import os
 import sys
+import csv
 from pathlib import Path
 from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent))
+from collect_labeled_dataset import (
+    DEFAULT_DATASET,
+    analyze_image,
+    append_dataset_row,
+    build_dataset_row,
+    ensure_dataset_file,
+)
 from image_preprocessing import ImagePreprocessingPipeline
 from rl_models import (
     run_random, update_random,
@@ -30,6 +38,19 @@ PI_PORT = 8765
 pipeline = ImagePreprocessingPipeline()
 previous_image_path = None
 current_model = "deep_contextual_bandit"  # default model
+dataset_path = DEFAULT_DATASET.resolve()
+ensure_dataset_file(dataset_path)
+pending_dataset_samples = {}
+
+
+def count_dataset_rows(path: Path) -> int:
+    if not path.exists():
+        return 0
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        return sum(1 for _ in csv.DictReader(handle))
+
+
+dataset_saved_count = count_dataset_rows(dataset_path)
 
 # Maps model name to its run and update functions
 MODEL_MAP = {
@@ -45,7 +66,7 @@ MODEL_MAP = {
 }
 
 async def handle_backend(websocket):
-    global previous_image_path, current_model
+    global previous_image_path, current_model, dataset_saved_count
     print("Backend connected!")
     async for message in websocket:
         print(f"Received: {message}")
@@ -134,6 +155,55 @@ async def handle_backend(websocket):
                     "message": "RL model decided not to send image"
                 }))
 
+        elif message == "captureDatasetImage":
+            image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            captured_at = datetime.now().isoformat(timespec="seconds")
+
+            capture_result = run_capture()
+            if capture_result["type"] == "error":
+                await websocket.send(json.dumps(capture_result))
+                continue
+
+            current_image_path = capture_result["image_path"]
+
+            try:
+                analysis = analyze_image(
+                    pipeline,
+                    image_path=Path(current_image_path),
+                    previous_image_path=Path(previous_image_path) if previous_image_path else None,
+                    verbose=True,
+                )
+            except Exception as e:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"Dataset capture preprocessing failed: {e}",
+                }))
+                continue
+
+            previous_image_path = current_image_path
+            pending_dataset_samples[image_id] = {
+                "image_path": current_image_path,
+                "captured_at": captured_at,
+                "analysis": analysis,
+            }
+
+            with open(current_image_path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+
+            await websocket.send(json.dumps({
+                "type": "image",
+                "format": "image/jpeg",
+                "data": b64,
+                "image_id": image_id,
+                "features": analysis["features"],
+                "state": analysis["state"],
+                "capture_mode": "dataset",
+                "pipeline_would_send": analysis["pipeline_would_send"],
+                "has_significant_change": analysis["has_significant_change"],
+                "stage1_passes": analysis["stage1_passes"],
+                "stage2_passes": analysis["stage2_passes"],
+            }))
+
         # Reward/punishment from backend
         elif message.startswith("reward:") or message.startswith("punishment:"):
             parts = message.split(":")
@@ -145,6 +215,66 @@ async def handle_backend(websocket):
             _, update_fn = MODEL_MAP[current_model]
             update_fn(image_id, reward)
             print(f"Updated {current_model} with reward {reward} for image {image_id}")
+
+        elif message.startswith("datasetLabel:"):
+            parts = message.split(":", 2)
+            if len(parts) != 3:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": "Invalid datasetLabel message format",
+                }))
+                continue
+
+            _, image_id, label = parts
+            if label not in {"reward", "punishment"}:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"Invalid dataset label: {label}",
+                }))
+                continue
+
+            sample = pending_dataset_samples.pop(image_id, None)
+            if sample is None:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": f"No pending dataset sample found for image_id {image_id}",
+                }))
+                continue
+
+            row = build_dataset_row(
+                image_path=Path(sample["image_path"]),
+                label=label,
+                analysis=sample["analysis"],
+                image_id=image_id,
+                captured_at=sample["captured_at"],
+            )
+            append_dataset_row(dataset_path, row)
+            dataset_saved_count += 1
+
+            await websocket.send(json.dumps({
+                "type": "dataset_saved",
+                "image_id": image_id,
+                "label": label,
+                "saved_count": dataset_saved_count,
+                "dataset_path": str(dataset_path),
+            }))
+
+        elif message.startswith("datasetSkip:"):
+            parts = message.split(":", 1)
+            if len(parts) != 2:
+                await websocket.send(json.dumps({
+                    "type": "error",
+                    "message": "Invalid datasetSkip message format",
+                }))
+                continue
+
+            _, image_id = parts
+            pending_dataset_samples.pop(image_id, None)
+            await websocket.send(json.dumps({
+                "type": "dataset_skipped",
+                "image_id": image_id,
+                "saved_count": dataset_saved_count,
+            }))
 
 
 def run_capture():
