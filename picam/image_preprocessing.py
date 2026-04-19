@@ -29,7 +29,8 @@ class ImageCaptureProcessor:
         original_img = cv2.imread(image_path)
         if original_img is None:
             raise ValueError(f"Cannot read image from {image_path}")
-        
+
+        original_img = cv2.rotate(original_img, cv2.ROTATE_180)
         resized_img = cv2.resize(original_img, self.analysis_size)
         return original_img, resized_img
 
