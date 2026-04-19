@@ -81,7 +81,7 @@ export default function LiveFeedView({
 
           <div className="w-full aspect-video rounded-lg overflow-hidden bg-[#161619] border border-white/[0.06] flex items-center justify-center">
             {capturedImageSrc ? (
-              <img src={capturedImageSrc} alt="Captured from Pi" className="w-full h-full object-contain" />
+              <img src={capturedImageSrc} alt="Captured from Pi" className="w-full h-full object-contain rotate-180" />
             ) : (
               <div className="flex flex-col items-center gap-2">
                 <div className="w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
