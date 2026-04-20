@@ -1,5 +1,9 @@
 using System.Net.WebSockets;
 using System.Text.Json;
+
+System.Net.WebSockets.WebSocket? frontendSocket = null;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Add CORS so Next.js (port 3000) can talk to .NET
@@ -14,6 +18,35 @@ builder.Services.AddCors(options => {
 var piUrl = builder.Configuration["PiWebSocketUrl"] ?? "ws://172.20.10.12:8765";
 
 var app = builder.Build();
+
+var piUri = new Uri(piUrl);
+var persistentPiSocket = new ClientWebSocket();
+
+// Connect to Pi and listen for autonomous images
+_ = Task.Run(async () => {
+    while (true) {
+        try {
+            if (persistentPiSocket.State != WebSocketState.Open) {
+                persistentPiSocket = new ClientWebSocket();
+                await persistentPiSocket.ConnectAsync(piUri, CancellationToken.None);
+                Console.WriteLine("Persistent Pi connection established!");
+            }
+            
+            var buffer = new byte[1024 * 1024 * 5]; // 5MB
+            var result = await persistentPiSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            string message = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
+            
+            // Forward to frontend if we have a connected frontend socket
+            if (frontendSocket != null && frontendSocket.State == WebSocketState.Open) {
+                byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(message);
+                await frontendSocket.SendAsync(new ArraySegment<byte>(responseBuffer), WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+        } catch (Exception ex) {
+            Console.WriteLine($"Pi connection error: {ex.Message} — retrying in 2s");
+            await Task.Delay(2000);
+        }
+    }
+});
 
 app.UseCors("NextJsPolicy");
 app.UseWebSockets(); // This enables the WebSocket protocol
@@ -34,6 +67,7 @@ app.Run();
 
 // 3. The Message Handler
 async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
+    frontendSocket = webSocket;
     var buffer = new byte[1024 * 4];
     while (webSocket.State == System.Net.WebSockets.WebSocketState.Open) {
         var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
@@ -44,20 +78,13 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
             Console.WriteLine($"Received from frontend: {message}");
 
             if (message == "captureImage") {
-                var piResponse = await GetImageFromPi(piUrl);
-
-                byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(piResponse);
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(responseBuffer),
-                    System.Net.WebSockets.WebSocketMessageType.Text,
-                    true,
-                    CancellationToken.None
-                );
+                await SendToPiPersistent("captureImage");
+                // Response comes back through the persistent listener automatically
             } else if (message.StartsWith("reward:") || 
                     message.StartsWith("punishment:") || 
-                    message.StartsWith("setModel:")) {
-                // Forward directly to Pi without any processing
-                await ForwardToPi(piUrl, message);
+                    message.StartsWith("setModel:") ||
+                    message == "startNavigation") {
+                await SendToPiPersistent(message);
             } else {
                 var payload = new { type = "text", message = "A regular message from backend!" };
                 string json = JsonSerializer.Serialize(payload);
@@ -73,58 +100,16 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
     }
 }
 
-async Task<string> GetImageFromPi(string piUrl) {
-    //var piUri = new Uri("ws://172.20.10.12:8765"); // Use Pi's IP
-    var piUri = new Uri(piUrl);
-    using var piSocket = new ClientWebSocket();
-    
+async Task SendToPiPersistent(string message) {
     try {
-        await piSocket.ConnectAsync(piUri, CancellationToken.None);
-        Console.WriteLine("Connected to Pi WebSocket server!");
-
-        // Send capture command
-        byte[] commandBuffer = System.Text.Encoding.UTF8.GetBytes("captureImage");
-        await piSocket.SendAsync(
-            new ArraySegment<byte>(commandBuffer),
-            System.Net.WebSockets.WebSocketMessageType.Text,
+        byte[] buffer = System.Text.Encoding.UTF8.GetBytes(message);
+        await persistentPiSocket.SendAsync(
+            new ArraySegment<byte>(buffer),
+            WebSocketMessageType.Text,
             true,
             CancellationToken.None
         );
-
-        // Receive image — use large buffer since images are big
-        var receiveBuffer = new byte[1024 * 1024 * 5]; // 5MB
-        var receiveResult = await piSocket.ReceiveAsync(new ArraySegment<byte>(receiveBuffer), CancellationToken.None);
-        string piResponse = System.Text.Encoding.UTF8.GetString(receiveBuffer, 0, receiveResult.Count);
-
-        await piSocket.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "Done", CancellationToken.None);
-        return piResponse;
-
     } catch (Exception ex) {
-        Console.WriteLine($"Error connecting to Pi: {ex.Message}");
-        var error = new { type = "text", message = $"Pi connection failed: {ex.Message}" };
-        return JsonSerializer.Serialize(error);
-    }
-}
-
-async Task ForwardToPi(string piUrl, string message) {
-    var piUri = new Uri(piUrl);
-    using var piSocket = new ClientWebSocket();
-
-    try {
-        await piSocket.ConnectAsync(piUri, CancellationToken.None);
-
-        byte[] commandBuffer = System.Text.Encoding.UTF8.GetBytes(message);
-        await piSocket.SendAsync(
-            new ArraySegment<byte>(commandBuffer),
-            System.Net.WebSockets.WebSocketMessageType.Text,
-            true,
-            CancellationToken.None
-        );
-
-        await piSocket.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "Done", CancellationToken.None);
-        Console.WriteLine($"Forwarded to Pi: {message}");
-
-    } catch (Exception ex) {
-        Console.WriteLine($"Error forwarding to Pi: {ex.Message}");
+        Console.WriteLine($"Error sending to Pi: {ex.Message}");
     }
 }
