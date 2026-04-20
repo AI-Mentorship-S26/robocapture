@@ -41,10 +41,10 @@ from encodersFull import Encoder   # your quadrature encoder class
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ── Robot geometry ─────────────────────────────────────────────────────────────
-TICKS_PER_REV      = 620      # encoder ticks for one full wheel revolution
+TICKS_PER_REV      = 1920     # encoder ticks for one full wheel revolution
                                # (set by --calibrate, or measure manually)
-WHEEL_DIAMETER_CM  = 6.5      # wheel outer diameter in centimetres
-WHEELBASE_CM       = 17.0     # centre-to-centre distance between wheels (cm)
+WHEEL_DIAMETER_CM  = 6.7      # wheel outer diameter in centimetres
+WHEELBASE_CM       = 23.0     # centre-to-centre distance between wheels (cm)
                                # used to convert turn angle → wheel arc length
 
 # ── Motor pins  (must match robot_rl_nav.py) ──────────────────────────────────
