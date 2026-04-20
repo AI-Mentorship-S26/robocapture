@@ -17,26 +17,29 @@ class Encoder:
                        -1, 0, 0, 1,
                        0, 1, -1, 0]
         
-        self.prevA = 0
-        self.prevB = 0
-
         self.daemon.set_mode(self.pinA, pigpio.INPUT)
         self.daemon.set_mode(self.pinB, pigpio.INPUT)
-        
+
         self.daemon.set_pull_up_down(self.pinA, pigpio.PUD_UP)
         self.daemon.set_pull_up_down(self.pinB, pigpio.PUD_UP)
 
-        # self.daemon.set_glitch_filter(self.pinA, 10)
-        # self.daemon.set_glitch_filter(self.pinB, 10)
+        self.daemon.set_glitch_filter(self.pinA, 5)
+        self.daemon.set_glitch_filter(self.pinB, 5)
+
+        # Seed from actual pin levels after pull-ups settle
+        import time; time.sleep(0.01)
+        self.prevA = self.daemon.read(self.pinA)
+        self.prevB = self.daemon.read(self.pinB)
 
         self.pinAFunction = self.daemon.callback(self.pinA, pigpio.EITHER_EDGE, self.onPinUpdate)
         self.pinBFunction = self.daemon.callback(self.pinB, pigpio.EITHER_EDGE, self.onPinUpdate)
 
-    # runs when pin a goes to rising edge. See then value of B to see if going up or down
-    def onPinUpdate(self, _gpio, aPinVal, measuringTime):
-        currA = self.daemon.read(self.pinA)
-        currB = self.daemon.read(self.pinB)
-        # print(f"Current for {self.encoderDirection} is {currA} for A, {currB} for B")
+    def onPinUpdate(self, gpio, level, _tick):
+        # Use the level delivered by the callback — faster and more accurate than re-reading
+        if gpio == self.pinA:
+            currA, currB = level, self.daemon.read(self.pinB)
+        else:
+            currA, currB = self.daemon.read(self.pinA), level
         index = (self.prevA << 3) | (self.prevB << 2) | (currA << 1) | currB
         self.tick += self.lookup[index]
         self.prevA = currA
