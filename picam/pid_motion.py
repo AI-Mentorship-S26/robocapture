@@ -41,7 +41,7 @@ from encodersFull import Encoder   # your quadrature encoder class
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ── Robot geometry ─────────────────────────────────────────────────────────────
-TICKS_PER_REV      = 1920     # encoder ticks for one full wheel revolution
+TICKS_PER_REV      = 2920     # encoder ticks for one full wheel revolution
                                # (set by --calibrate, or measure manually)
 WHEEL_DIAMETER_CM  = 6.7      # wheel outer diameter in centimetres
 WHEELBASE_CM       = 23.0     # centre-to-centre distance between wheels (cm)
