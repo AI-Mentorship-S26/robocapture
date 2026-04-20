@@ -24,7 +24,11 @@
   import LogsView from "@/components/dashboard/LogsView";
   import { CpuIcon, LogOutIcon } from "@/components/dashboard/icons";
 
-  const PI_WS_URL = process.env.NEXT_PUBLIC_PI_WS_URL ?? "ws://raspberrypi.local:8765";
+  //old
+  //const PI_WS_URL = process.env.NEXT_PUBLIC_PI_WS_URL ?? "ws://raspberrypi.local:8765";
+
+  //new
+  const BACKEND_WS_URL = "ws://localhost:5081/ws";
 
   function StatPill({ label, value }: { label: string; value: string | number }) {
     return (
@@ -87,10 +91,10 @@
     useEffect(() => {
       let socket: WebSocket;
       try {
-        socket = new WebSocket(PI_WS_URL);
+        socket = new WebSocket(BACKEND_WS_URL);
       } catch {
         setWsStatus("error");
-        setWsMessage(`Invalid WebSocket URL: "${PI_WS_URL}". Check NEXT_PUBLIC_PI_WS_URL in .env.local.`);
+        setWsMessage(`Invalid WebSocket URL: "${BACKEND_WS_URL}". Check NEXT_PUBLIC_PI_WS_URL in .env.local.`);
         return;
       }
 
@@ -99,7 +103,7 @@
           socket.close();
           setWsStatus("error");
           setWsMessage(
-            `Connection timed out after 5s - could not reach ${PI_WS_URL}. ` +
+            `Connection timed out after 5s - could not reach ${BACKEND_WS_URL}. ` +
               `Check: (1) Pi server is running (python picam/pi_server.py), ` +
               `(2) Pi and this machine are on the same network, ` +
               `(3) IP in .env.local is correct.`
@@ -169,7 +173,7 @@
         clearTimeout(connectionTimeout);
         setWsStatus("disconnected");
         if (event.code === 1006) {
-          setWsMessage(`Lost connection abnormally (code 1006) - Pi server likely crashed or is unreachable at ${PI_WS_URL}.`);
+          setWsMessage(`Lost connection abnormally (code 1006) - Pi server likely crashed or is unreachable at ${BACKEND_WS_URL}.`);
         } else if (event.code !== 1000) {
           setWsMessage(`Disconnected (code ${event.code}). Refresh to reconnect.`);
         }
@@ -178,7 +182,7 @@
       socket.onerror = () => {
         setWsStatus("error");
         setWsMessage(
-          `WebSocket error - cannot connect to ${PI_WS_URL}. ` +
+          `WebSocket error - cannot connect to ${BACKEND_WS_URL}. ` +
             `Verify the Pi server is running and the IP/port is correct.`
         );
       };
@@ -351,7 +355,7 @@
       } else {
         setWsMessage("Not connected - check if the backend is running.");
       }
-    }, []);
+    }, [captureMode]);
 
     const handleStartNavigation = useCallback(() => {
       if (socketRef.current?.readyState === WebSocket.OPEN) {
