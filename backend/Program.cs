@@ -83,6 +83,9 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
             } else if (message.StartsWith("reward:") || 
                     message.StartsWith("punishment:") || 
                     message.StartsWith("setModel:") ||
+                    message.StartsWith("datasetLabel:") ||
+                    message.StartsWith("datasetSkip:") ||
+                    message == "captureDatasetImage" ||
                     message == "startNavigation") {
                 await SendToPiPersistent(message);
             } else {
