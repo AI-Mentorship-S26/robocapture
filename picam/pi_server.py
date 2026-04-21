@@ -97,7 +97,9 @@ async def handle_backend(websocket):
                 if not robot_rl_nav.is_navigating:
                     threading.Thread(target=robot_rl_nav.main, daemon=True).start()
                     print("Navigation started!")
-
+            elif message == "stopNavigation":
+                robot_rl_nav.stop_navigation()
+                print("Navigation stopped!")
             elif message == "captureImage":
                 if robot_rl_nav.is_navigating:
                     await websocket.send(json.dumps({

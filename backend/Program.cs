@@ -86,7 +86,8 @@ async Task EchoLoop(System.Net.WebSockets.WebSocket webSocket) {
                     message.StartsWith("datasetLabel:") ||
                     message.StartsWith("datasetSkip:") ||
                     message == "captureDatasetImage" ||
-                    message == "startNavigation") {
+                    message == "startNavigation" ||
+                    message == "stopNavigation") {
                 await SendToPiPersistent(message);
             } else {
                 var payload = new { type = "text", message = "A regular message from backend!" };

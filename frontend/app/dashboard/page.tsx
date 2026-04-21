@@ -365,7 +365,17 @@
       } else {
         setWsMessage("Not connected — check if the backend is running.");
       }
-    }, []); 
+    }, []);
+
+    const handleStopNavigation = useCallback(() => {
+      if (socketRef.current?.readyState === WebSocket.OPEN) {
+        socketRef.current.send("stopNavigation");
+        setNavigationStarted(false);
+        setWsMessage("Navigation stopped.");
+      } else {
+        setWsMessage("Not connected — check if the backend is running.");
+      }
+    }, []);
 
     const wsColor = {
       connected: "bg-emerald-400",
@@ -468,6 +478,7 @@
                 onAction={sendAction}
                 navigationStarted={navigationStarted}
                 onStartNavigation={handleStartNavigation}
+                onStopNavigation={handleStopNavigation}
               />
             )}
           </main>

@@ -49,6 +49,7 @@ interface Props {
   currentPipelineWouldSend: boolean | null;
   navigationStarted: boolean;
   onStartNavigation: () => void;
+  onStopNavigation: () => void;
   onCapture: () => void;
   onCaptureModeChange: (mode: "live" | "dataset") => void;
   onAction: (action: "+R" | "-P" | "skip") => void;
@@ -71,6 +72,7 @@ export default function LiveFeedView({
   currentPipelineWouldSend,
   navigationStarted,
   onStartNavigation,
+  onStopNavigation,
   onCapture,
   onCaptureModeChange,
   onAction,
@@ -176,11 +178,14 @@ export default function LiveFeedView({
           {captureMode === "live" && (
             <div className="flex gap-3">
               <button
-                onClick={onStartNavigation}
-                disabled={navigationStarted}
-                className="flex-1 py-2.5 rounded-full bg-blue-500 text-white text-sm font-semibold hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
+                onClick={navigationStarted ? onStopNavigation : onStartNavigation}
+                className={`flex-1 py-2.5 rounded-full text-white text-sm font-semibold active:scale-95 transition-all ${
+                  navigationStarted
+                    ? "bg-rose-500 hover:bg-rose-600"
+                    : "bg-blue-500 hover:bg-blue-600"
+                }`}
               >
-                {navigationStarted ? "Navigation Running..." : "Start Navigation"}
+                {navigationStarted ? "Stop Navigation" : "Start Navigation"}
               </button>
               <button
                 onClick={onCapture}
