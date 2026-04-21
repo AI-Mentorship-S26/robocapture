@@ -65,7 +65,7 @@ STABILISE_SEC = 0.3
 
 WHEEL_CIRC_CM = math.pi * WHEEL_DIAMETER_CM
 TICKS_PER_CM  = TICKS_PER_REV / WHEEL_CIRC_CM
-TICKS_FOR_90  = int((90.0 / 360.0) * math.pi * WHEELBASE_CM * TICKS_PER_CM)
+TICKS_FOR_90  = 2605
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  SINGLE PIGPIO INSTANCE + INLINE ENCODER SETUP
