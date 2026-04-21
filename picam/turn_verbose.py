@@ -16,7 +16,7 @@ LEFT_ENC_A,  LEFT_ENC_B  = 24, 25
 RIGHT_ENC_A, RIGHT_ENC_B = 17, 27
 
 SPEED       = 150
-TICKS_FOR_90 = 300   # ← paste YOUR measured value here
+TICKS_FOR_90 = 2605   # ← paste YOUR measured value here
 
 # ── pigpio ─────────────────────────────────────────────────────────────────────
 pi = pigpio.pi()
