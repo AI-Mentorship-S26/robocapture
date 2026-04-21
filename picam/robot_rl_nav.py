@@ -400,7 +400,6 @@ def main():
         pi.write(STBY, 0)
         pi.set_PWM_dutycycle(PWMA, 0)
         pi.set_PWM_dutycycle(PWMB, 0)
-        pi.stop()
         print("Robot safely disarmed.")
 
 if __name__ == "__main__":
