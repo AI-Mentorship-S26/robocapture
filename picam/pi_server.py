@@ -6,8 +6,15 @@ import json
 import os
 import sys
 import csv
+import time
 from pathlib import Path
 from datetime import datetime
+
+_t0 = time.time()
+def _log(msg: str):
+    print(f"[{time.time() - _t0:6.1f}s] {msg}", flush=True)
+
+_log("Starting — loading dataset helpers...")
 sys.path.insert(0, str(Path(__file__).parent))
 from collect_labeled_dataset import (
     DEFAULT_DATASET,
@@ -16,6 +23,7 @@ from collect_labeled_dataset import (
     build_dataset_row,
     ensure_dataset_file,
 )
+_log("Dataset helpers loaded — loading RL models (may take 10-30s)...")
 from rl_models import (
     run_random, update_random,
     run_deep_contextual_bandit, update_deep_contextual_bandit,
@@ -27,18 +35,16 @@ from rl_models import (
     run_aac, update_aac,
     run_tiny_sac, update_tiny_sac
 )
-
-# Queue for nav images to send to frontend
-nav_image_queue = asyncio.Queue()
-
-def nav_image_callback(image_id, b64):
-    nav_image_queue.put_nowait((image_id, b64))
+_log("RL models loaded — loading robot_rl_nav + MobileNetV2 (may take 20-40s)...")
 
 #for navigation
 import threading
 import robot_rl_nav
 
+_log("robot_rl_nav loaded — starting nav thread...")
+
 def _run_nav():
+    _log("Nav thread started — beginning navigation loop")
     try:
         robot_rl_nav.main()
     except Exception as e:
@@ -49,6 +55,7 @@ threading.Thread(target=_run_nav, daemon=True).start()
 
 PI_PORT = 8765
 pipeline = robot_rl_nav.pipeline  # reuse already-loaded MobileNetV2 instance
+nav_image_queue: asyncio.Queue = None  # initialised inside asyncio.run() to bind to the correct event loop
 previous_image_path = None
 current_model = "deep_contextual_bandit"
 dataset_path = DEFAULT_DATASET.resolve()
@@ -295,7 +302,9 @@ def run_capture():
 
 
 async def main():
-    print(f"Pi WebSocket server starting on port {PI_PORT}...")
+    global nav_image_queue
+    nav_image_queue = asyncio.Queue()  # created inside the running event loop
+    _log(f"WebSocket server ready on port {PI_PORT} — waiting for frontend connection...")
     async with websockets.serve(handle_backend, "0.0.0.0", PI_PORT):
         await asyncio.Future()
 
