@@ -19,7 +19,7 @@ import pigpio
 #  CONFIGURATION — paste your measured values here
 # ══════════════════════════════════════════════════════════════════════════════
 
-TICKS_FOR_90 = 2605    # ← from turn_verbose.py measurement
+TICKS_FOR_90 = 2475    # ← from turn_verbose.py measurement
 TICKS_PER_CM = 40.0    # ← measure by driving a known distance, update later
 
 TURN_SPEED   = 150     # PWM — must match the speed used when measuring TICKS_FOR_90
