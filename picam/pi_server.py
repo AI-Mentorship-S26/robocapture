@@ -27,6 +27,13 @@ from rl_models import (
     run_aac, update_aac,
     run_tiny_sac, update_tiny_sac
 )
+
+# Queue for nav images to send to frontend
+nav_image_queue = asyncio.Queue()
+
+def nav_image_callback(image_id, b64):
+    nav_image_queue.put_nowait((image_id, b64))
+
 #for navigation
 import threading
 import robot_rl_nav
@@ -43,11 +50,10 @@ threading.Thread(target=_run_nav, daemon=True).start()
 PI_PORT = 8765
 pipeline = robot_rl_nav.pipeline  # reuse already-loaded MobileNetV2 instance
 previous_image_path = None
-current_model = "deep_contextual_bandit"  # default model
+current_model = "deep_contextual_bandit"
 dataset_path = DEFAULT_DATASET.resolve()
 ensure_dataset_file(dataset_path)
 pending_dataset_samples = {}
-
 
 def count_dataset_rows(path: Path) -> int:
     if not path.exists():
@@ -55,10 +61,8 @@ def count_dataset_rows(path: Path) -> int:
     with path.open("r", newline="", encoding="utf-8") as handle:
         return sum(1 for _ in csv.DictReader(handle))
 
-
 dataset_saved_count = count_dataset_rows(dataset_path)
 
-# Maps model name to its run and update functions
 MODEL_MAP = {
     "random":   (run_random,    update_random),
     "deep_contextual_bandit": (run_deep_contextual_bandit, update_deep_contextual_bandit),
@@ -74,213 +78,202 @@ MODEL_MAP = {
 async def handle_backend(websocket):
     global previous_image_path, current_model, dataset_saved_count
     print("Backend connected!")
-    async for message in websocket:
-        print(f"Received: {message}")
 
-        # Model switching
-        if message.startswith("setModel:"):
-            current_model = message.split(":")[1]
-            robot_rl_nav.set_current_model(current_model)
-            print(f"Switched to model: {current_model}")
+    async def forward_nav_images():
+        while True:
+            image_id, b64 = await nav_image_queue.get()
+            await websocket.send(json.dumps({
+                "type": "image",
+                "format": "image/jpeg",
+                "data": b64,
+                "image_id": image_id
+            }))
 
-        # Capture image
-        elif message == "captureImage":
-            # Step 1: Generate image ID
-            image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    nav_task = asyncio.create_task(forward_nav_images())
 
-            # Step 2: Capture image
-            capture_result = run_capture()
-            if capture_result["type"] == "error":
-                await websocket.send(json.dumps(capture_result))
-                continue
+    try:
+        async for message in websocket:
+            print(f"Received: {message}")
 
-            current_image_path = capture_result["image_path"]
+            if message.startswith("setModel:"):
+                current_model = message.split(":")[1]
+                robot_rl_nav.set_current_model(current_model)
+                print(f"Switched to model: {current_model}")
 
-            # Step 3: Run preprocessing pipeline
-            should_send, results = pipeline.process_image(
-                current_image_path,
-                previous_image_path,
-                verbose=True
-            )
-            previous_image_path = current_image_path
+            elif message == "startNavigation":
+                if not robot_rl_nav.is_navigating:
+                    threading.Thread(target=robot_rl_nav.main, daemon=True).start()
+                    print("Navigation started!")
 
-            if not should_send:
-                if not results['stage_0_5']['has_significant_change']:
-                    reason = "Image too similar to previous frame"
-                elif not results['stage_1']['passes']:
-                    reason = "Image quality too low (too dark or blurry)"
+            elif message == "captureImage":
+                if robot_rl_nav.is_navigating:
+                    await websocket.send(json.dumps({
+                        "type": "no_send",
+                        "message": "Robot is navigating — manual capture disabled"
+                    }))
+                    continue
+
+                image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                capture_result = run_capture()
+                if capture_result["type"] == "error":
+                    await websocket.send(json.dumps(capture_result))
+                    continue
+
+                current_image_path = capture_result["image_path"]
+                should_send, results = pipeline.process_image(
+                    current_image_path, previous_image_path, verbose=True
+                )
+                previous_image_path = current_image_path
+
+                if not should_send:
+                    if not results['stage_0_5']['has_significant_change']:
+                        reason = "Image too similar to previous frame"
+                    elif not results['stage_1']['passes']:
+                        reason = "Image quality too low (too dark or blurry)"
+                    else:
+                        reason = "Image rejected by preprocessing pipeline"
+                    await websocket.send(json.dumps({"type": "no_send", "message": reason}))
+                    continue
+
+                state = [
+                    results['stage_0_5']['change_percentage'],
+                    results['stage_1']['brightness'],
+                    results['stage_1']['saturation'],
+                    results['stage_1']['sharpness'],
+                    results['stage_1']['edge_count'],
+                    results['stage_1']['mean_frequency'],
+                    results['stage_2']['embedding_magnitude'],
+                    *results['embedding']
+                ]
+                state = [float(x) for x in state]
+
+                run_fn, _ = MODEL_MAP[current_model]
+                decision = run_fn(image_id, state)
+                print(f"Model: {current_model} | Decision: {decision}")
+
+                if decision == 1:
+                    with open(current_image_path, "rb") as f:
+                        b64 = base64.b64encode(f.read()).decode("utf-8")
+                    await websocket.send(json.dumps({
+                        "type": "image",
+                        "format": "image/jpeg",
+                        "data": b64,
+                        "image_id": image_id,
+                        "features": {
+                            "change_pct":          float(results['stage_0_5']['change_percentage']),
+                            "brightness":          float(results['stage_1']['brightness']),
+                            "saturation":          float(results['stage_1']['saturation']),
+                            "sharpness":           float(results['stage_1']['sharpness']),
+                            "edge_count":          float(results['stage_1']['edge_count']),
+                            "mean_frequency":      float(results['stage_1']['mean_frequency']),
+                            "embedding_magnitude": float(results['stage_2']['embedding_magnitude']),
+                        },
+                        "state": state,
+                    }))
                 else:
-                    reason = "Image rejected by preprocessing pipeline"
+                    await websocket.send(json.dumps({
+                        "type": "no_send",
+                        "message": "RL model decided not to send image"
+                    }))
 
-                await websocket.send(json.dumps({
-                    "type": "no_send",
-                    "message": reason
-                }))
-                continue
+            elif message == "captureDatasetImage":
+                image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                captured_at = datetime.now().isoformat(timespec="seconds")
+                capture_result = run_capture()
+                if capture_result["type"] == "error":
+                    await websocket.send(json.dumps(capture_result))
+                    continue
 
-            # Step 4: Build state
-            state = [
-                results['stage_0_5']['change_percentage'],
-                results['stage_1']['brightness'],
-                results['stage_1']['saturation'],
-                results['stage_1']['sharpness'],
-                results['stage_1']['edge_count'],
-                results['stage_1']['mean_frequency'],
-                results['stage_2']['embedding_magnitude'],
-                *results['embedding']
-            ]
+                current_image_path = capture_result["image_path"]
+                try:
+                    analysis = analyze_image(
+                        pipeline,
+                        image_path=Path(current_image_path),
+                        previous_image_path=Path(previous_image_path) if previous_image_path else None,
+                        verbose=True,
+                    )
+                except Exception as e:
+                    await websocket.send(json.dumps({"type": "error", "message": f"Dataset capture preprocessing failed: {e}"}))
+                    continue
 
-            # Step 5: Run RL model
-            state = [float(x) for x in state]
-            run_fn, _ = MODEL_MAP[current_model]
-            decision = run_fn(image_id, state)
-            print(f"Model: {current_model} | Decision: {decision}")
+                previous_image_path = current_image_path
+                pending_dataset_samples[image_id] = {
+                    "image_path": current_image_path,
+                    "captured_at": captured_at,
+                    "analysis": analysis,
+                }
 
-            if decision == 1:
                 with open(current_image_path, "rb") as f:
                     b64 = base64.b64encode(f.read()).decode("utf-8")
+
                 await websocket.send(json.dumps({
                     "type": "image",
                     "format": "image/jpeg",
                     "data": b64,
                     "image_id": image_id,
-                    "features": {
-                        "change_pct":          float(results['stage_0_5']['change_percentage']),
-                        "brightness":          float(results['stage_1']['brightness']),
-                        "saturation":          float(results['stage_1']['saturation']),
-                        "sharpness":           float(results['stage_1']['sharpness']),
-                        "edge_count":          float(results['stage_1']['edge_count']),
-                        "mean_frequency":      float(results['stage_1']['mean_frequency']),
-                        "embedding_magnitude": float(results['stage_2']['embedding_magnitude']),
-                    },
-                    "state": state,
-                }))
-            else:
-                await websocket.send(json.dumps({
-                    "type": "no_send",
-                    "message": "RL model decided not to send image"
+                    "features": analysis["features"],
+                    "state": analysis["state"],
+                    "capture_mode": "dataset",
+                    "pipeline_would_send": analysis["pipeline_would_send"],
+                    "has_significant_change": analysis["has_significant_change"],
+                    "stage1_passes": analysis["stage1_passes"],
+                    "stage2_passes": analysis["stage2_passes"],
                 }))
 
-        elif message == "captureDatasetImage":
-            image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            captured_at = datetime.now().isoformat(timespec="seconds")
+            elif message.startswith("reward:") or message.startswith("punishment:"):
+                parts = message.split(":")
+                feedback_type = parts[0]
+                image_id = parts[1]
+                reward = 1 if feedback_type == "reward" else -1
+                _, update_fn = MODEL_MAP[current_model]
+                update_fn(image_id, reward)
+                print(f"Updated {current_model} with reward {reward} for image {image_id}")
 
-            capture_result = run_capture()
-            if capture_result["type"] == "error":
-                await websocket.send(json.dumps(capture_result))
-                continue
-
-            current_image_path = capture_result["image_path"]
-
-            try:
-                analysis = analyze_image(
-                    pipeline,
-                    image_path=Path(current_image_path),
-                    previous_image_path=Path(previous_image_path) if previous_image_path else None,
-                    verbose=True,
+            elif message.startswith("datasetLabel:"):
+                parts = message.split(":", 2)
+                if len(parts) != 3:
+                    await websocket.send(json.dumps({"type": "error", "message": "Invalid datasetLabel message format"}))
+                    continue
+                _, image_id, label = parts
+                if label not in {"reward", "punishment"}:
+                    await websocket.send(json.dumps({"type": "error", "message": f"Invalid dataset label: {label}"}))
+                    continue
+                sample = pending_dataset_samples.pop(image_id, None)
+                if sample is None:
+                    await websocket.send(json.dumps({"type": "error", "message": f"No pending dataset sample found for image_id {image_id}"}))
+                    continue
+                row = build_dataset_row(
+                    image_path=Path(sample["image_path"]),
+                    label=label,
+                    analysis=sample["analysis"],
+                    image_id=image_id,
+                    captured_at=sample["captured_at"],
                 )
-            except Exception as e:
+                append_dataset_row(dataset_path, row)
+                dataset_saved_count += 1
                 await websocket.send(json.dumps({
-                    "type": "error",
-                    "message": f"Dataset capture preprocessing failed: {e}",
+                    "type": "dataset_saved",
+                    "image_id": image_id,
+                    "label": label,
+                    "saved_count": dataset_saved_count,
+                    "dataset_path": str(dataset_path),
                 }))
-                continue
 
-            previous_image_path = current_image_path
-            pending_dataset_samples[image_id] = {
-                "image_path": current_image_path,
-                "captured_at": captured_at,
-                "analysis": analysis,
-            }
-
-            with open(current_image_path, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode("utf-8")
-
-            await websocket.send(json.dumps({
-                "type": "image",
-                "format": "image/jpeg",
-                "data": b64,
-                "image_id": image_id,
-                "features": analysis["features"],
-                "state": analysis["state"],
-                "capture_mode": "dataset",
-                "pipeline_would_send": analysis["pipeline_would_send"],
-                "has_significant_change": analysis["has_significant_change"],
-                "stage1_passes": analysis["stage1_passes"],
-                "stage2_passes": analysis["stage2_passes"],
-            }))
-
-        # Reward/punishment from backend
-        elif message.startswith("reward:") or message.startswith("punishment:"):
-            parts = message.split(":")
-            feedback_type = parts[0]   # "reward" or "punishment"
-            image_id = parts[1]        # the image ID
-
-            reward = 1 if feedback_type == "reward" else -1
-
-            _, update_fn = MODEL_MAP[current_model]
-            update_fn(image_id, reward)
-            print(f"Updated {current_model} with reward {reward} for image {image_id}")
-
-        elif message.startswith("datasetLabel:"):
-            parts = message.split(":", 2)
-            if len(parts) != 3:
+            elif message.startswith("datasetSkip:"):
+                parts = message.split(":", 1)
+                if len(parts) != 2:
+                    await websocket.send(json.dumps({"type": "error", "message": "Invalid datasetSkip message format"}))
+                    continue
+                _, image_id = parts
+                pending_dataset_samples.pop(image_id, None)
                 await websocket.send(json.dumps({
-                    "type": "error",
-                    "message": "Invalid datasetLabel message format",
+                    "type": "dataset_skipped",
+                    "image_id": image_id,
+                    "saved_count": dataset_saved_count,
                 }))
-                continue
 
-            _, image_id, label = parts
-            if label not in {"reward", "punishment"}:
-                await websocket.send(json.dumps({
-                    "type": "error",
-                    "message": f"Invalid dataset label: {label}",
-                }))
-                continue
-
-            sample = pending_dataset_samples.pop(image_id, None)
-            if sample is None:
-                await websocket.send(json.dumps({
-                    "type": "error",
-                    "message": f"No pending dataset sample found for image_id {image_id}",
-                }))
-                continue
-
-            row = build_dataset_row(
-                image_path=Path(sample["image_path"]),
-                label=label,
-                analysis=sample["analysis"],
-                image_id=image_id,
-                captured_at=sample["captured_at"],
-            )
-            append_dataset_row(dataset_path, row)
-            dataset_saved_count += 1
-
-            await websocket.send(json.dumps({
-                "type": "dataset_saved",
-                "image_id": image_id,
-                "label": label,
-                "saved_count": dataset_saved_count,
-                "dataset_path": str(dataset_path),
-            }))
-
-        elif message.startswith("datasetSkip:"):
-            parts = message.split(":", 1)
-            if len(parts) != 2:
-                await websocket.send(json.dumps({
-                    "type": "error",
-                    "message": "Invalid datasetSkip message format",
-                }))
-                continue
-
-            _, image_id = parts
-            pending_dataset_samples.pop(image_id, None)
-            await websocket.send(json.dumps({
-                "type": "dataset_skipped",
-                "image_id": image_id,
-                "saved_count": dataset_saved_count,
-            }))
+    finally:
+        nav_task.cancel()
 
 
 def run_capture():
