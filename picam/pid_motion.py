@@ -106,15 +106,26 @@ def _motors_stop(coast_sec: float = STABILISE_SEC):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _do_turn():
-    """Single 90° turn using exact turn_verbose.py logic."""
+    """Single 90° turn — motors killed instantly at target, no coast function."""
     L0 = _get_left()
-    _motors_turn()
+
+    # Start turn — raw writes exactly like turn_verbose.py
+    pi.write(AIN1, 1); pi.write(AIN2, 0)
+    pi.set_PWM_dutycycle(PWMA, TURN_SPEED)
+    pi.write(BIN1, 0); pi.write(BIN2, 1)
+    pi.set_PWM_dutycycle(PWMB, TURN_SPEED)
+
     while True:
         time.sleep(0.01)
-        moved = abs(_get_left() - L0)
-        if moved >= TICKS_FOR_90:
+        if abs(_get_left() - L0) >= TICKS_FOR_90:
+            # Kill motors instantly — no function call, no sleep in between
+            pi.set_PWM_dutycycle(PWMA, 0)
+            pi.set_PWM_dutycycle(PWMB, 0)
+            pi.write(AIN1, 0); pi.write(AIN2, 0)
+            pi.write(BIN1, 0); pi.write(BIN2, 0)
             break
-    _motors_stop()
+
+    time.sleep(STABILISE_SEC)
 
 
 def turn_left_90():
