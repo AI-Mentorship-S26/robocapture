@@ -33,6 +33,12 @@ WIRING  (unchanged from your original)
   AIN1=6  AIN2=5   PWMA=12
   BIN1=16 BIN2=26  PWMB=13
   STBY=25
+
+HC-SR04 PROXIMITY SENSOR (3.3V wiring — no voltage divider needed)
+  VCC  → Pin 1  (3.3V)
+  GND  → Pin 6  (GND)
+  TRIG → Pin 16 (GPIO 23)
+  ECHO → Pin 15 (GPIO 22)
 """
 
 import os
@@ -61,17 +67,21 @@ is_navigating = False
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-DRIVE_SPEED   = 200        # PWM value 0-255 while going forward
-TURN_SPEED    = 150        # PWM value 0-255 while turning
-TURN_90_SEC   = 0.9        # seconds for a 90° turn  (tune on your surface)
-DRIVE_FWD_SEC = 1.5        # seconds to drive forward each cycle
-STABILISE_SEC = 0.3        # pause after stopping before taking a photo
+DRIVE_SPEED      = 200        # PWM value 0-255 while going forward
+TURN_SPEED       = 150        # PWM value 0-255 while turning
+TURN_90_SEC      = 0.9        # seconds for a 90° turn  (tune on your surface)
+DRIVE_FWD_SEC    = 1.5        # seconds to drive forward each cycle
+STABILISE_SEC    = 0.3        # pause after stopping before taking a photo
+STOP_DISTANCE_CM = 25         # halt if obstacle is closer than this (cm)
 
 # ── Pin definitions ────────────────────────────────────────────────────────────
 
 AIN1, AIN2, PWMA = 6,  5,  12
 BIN1, BIN2, PWMB = 16, 26, 13
 STBY             = 25
+
+TRIG = 23   # HC-SR04 trigger (OUTPUT)
+ECHO = 22   # HC-SR04 echo   (INPUT)
 
 # ── RL model registry + shared state ──────────────────────────────────────────
 #
@@ -138,6 +148,10 @@ pi.set_PWM_range(PWMA, 255);  pi.set_PWM_range(PWMB, 255)
 pi.set_PWM_frequency(PWMA, 1000); pi.set_PWM_frequency(PWMB, 1000)
 pi.write(STBY, 1)
 
+pi.set_mode(TRIG, pigpio.OUTPUT)
+pi.set_mode(ECHO, pigpio.INPUT)
+pi.write(TRIG, 0)
+
 # ── Camera: path to your existing capture script ──────────────────────────────
 #
 # Both this file and capture_once.py should live in the same directory.
@@ -194,6 +208,54 @@ def turn_left_90():
 
 def drive_forward(duration: float = DRIVE_FWD_SEC):
     run_command(DRIVE_SPEED, DRIVE_SPEED, duration, "Forward")
+
+# ── HC-SR04 proximity ──────────────────────────────────────────────────────────
+
+def get_distance() -> float:
+    """Return distance to nearest object in cm, or 999.0 on timeout."""
+    pi.write(TRIG, 0)
+    time.sleep(0.00005)           # 50µs settle
+    pi.write(TRIG, 1)
+    time.sleep(0.00001)           # 10µs trigger pulse
+    pi.write(TRIG, 0)
+
+    timeout = time.time() + 0.1
+    while pi.read(ECHO) == 0:
+        if time.time() > timeout:
+            return 999.0
+    pulse_start = time.time()
+
+    timeout = time.time() + 0.1
+    while pi.read(ECHO) == 1:
+        if time.time() > timeout:
+            return 999.0
+    pulse_end = time.time()
+
+    return round((pulse_end - pulse_start) * 17150, 2)
+
+def drive_forward_safe(duration: float = DRIVE_FWD_SEC) -> bool:
+    """
+    Drive forward for up to `duration` seconds, polling the HC-SR04 every 50ms.
+    Stops immediately and returns False if an obstacle is within STOP_DISTANCE_CM.
+    Returns True if the full duration completed without obstruction.
+    """
+    print(f"  [Forward safe] driving up to {duration:.2f}s")
+    set_motors(DRIVE_SPEED, DRIVE_SPEED)
+    deadline = time.time() + duration
+    while time.time() < deadline:
+        dist = get_distance()
+        if dist < STOP_DISTANCE_CM:
+            set_motors(0, 0)
+            time.sleep(0.05)
+            print("\n" + "!" * 50)
+            print(f"  OBSTACLE DETECTED  —  {dist:.1f} cm away")
+            print(f"  Motors stopped. Re-scanning now...")
+            print("!" * 50 + "\n")
+            return False
+        time.sleep(0.05)
+    set_motors(0, 0)
+    time.sleep(0.05)
+    return True
 
 # ── Camera capture ─────────────────────────────────────────────────────────────
 
@@ -395,7 +457,8 @@ def main():
 
             # Phase 3: orient + drive
             face_best_direction(best_dir, current_offset=3)
-            drive_forward(DRIVE_FWD_SEC)
+            if not drive_forward_safe(DRIVE_FWD_SEC):
+                continue   # obstacle hit — skip rest of cycle, re-scan immediately
 
     except KeyboardInterrupt:
         print("\nInterrupted by user.")

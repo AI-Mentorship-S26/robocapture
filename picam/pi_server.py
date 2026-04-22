@@ -16,7 +16,6 @@ from collect_labeled_dataset import (
     build_dataset_row,
     ensure_dataset_file,
 )
-from image_preprocessing import ImagePreprocessingPipeline
 from rl_models import (
     run_random, update_random,
     run_deep_contextual_bandit, update_deep_contextual_bandit,
@@ -32,10 +31,17 @@ from rl_models import (
 import threading
 import robot_rl_nav
 
-threading.Thread(target=robot_rl_nav.main, daemon=True).start()
+def _run_nav():
+    try:
+        robot_rl_nav.main()
+    except Exception as e:
+        print(f"\n[NAV THREAD CRASHED] {e}", flush=True)
+        import traceback; traceback.print_exc()
+
+threading.Thread(target=_run_nav, daemon=True).start()
 
 PI_PORT = 8765
-pipeline = ImagePreprocessingPipeline()
+pipeline = robot_rl_nav.pipeline  # reuse already-loaded MobileNetV2 instance
 previous_image_path = None
 current_model = "deep_contextual_bandit"  # default model
 dataset_path = DEFAULT_DATASET.resolve()
