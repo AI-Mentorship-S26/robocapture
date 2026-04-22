@@ -50,6 +50,8 @@ interface Props {
   onCapture: () => void;
   onCaptureModeChange: (mode: "live" | "dataset") => void;
   onAction: (action: "+R" | "-P" | "skip") => void;
+  navigationStarted: boolean;
+  onStartNavigation: () => void;
 }
 
 export default function LiveFeedView({
@@ -70,6 +72,8 @@ export default function LiveFeedView({
   onCapture,
   onCaptureModeChange,
   onAction,
+  navigationStarted,
+  onStartNavigation,
 }: Props) {
   const wsColor = WS_COLOR[wsStatus];
   const wsLabel = WS_LABEL[wsStatus];

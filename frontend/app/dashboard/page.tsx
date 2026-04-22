@@ -49,7 +49,7 @@
     }, [router]);
 
     const [user, setUser] = useState<{ email?: string; id?: string } | null>(null);
-    const [wsStatus, setWsStatus] = useState<WsStatus>("connecting");
+    const [wsStatus, setWsStatus] = useState<WsStatus>("disconnected");
     const [activeView, setActiveView] = useState<NavView>("live");
     const [activeModel, setActiveModel] = useState<RLModel>("deep_contextual_bandit");
     const [captureMode, setCaptureMode] = useState<"live" | "dataset">("live");
@@ -160,6 +160,9 @@
             setUploadStatus("idle");
             setDatasetSavedCount(data.saved_count ?? 0);
             setWsMessage("Skipped this dataset row.");
+          } else if (data.type === "pi_status") {
+            setWsStatus(data.connected ? "connected" : "disconnected");
+            setWsMessage(data.connected ? "" : "Pi server offline — waiting for reconnect...");
           } else if (data.type === "error") {
             setUploadStatus("error");
             setWsMessage(`Error: ${data.message}`);

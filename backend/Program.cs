@@ -22,20 +22,32 @@ var app = builder.Build();
 var piUri = new Uri(piUrl);
 var persistentPiSocket = new ClientWebSocket();
 
+async Task SendStatusToFrontend(bool piConnected) {
+    if (frontendSocket == null || frontendSocket.State != WebSocketState.Open) return;
+    var status = JsonSerializer.Serialize(new { type = "pi_status", connected = piConnected });
+    var bytes = System.Text.Encoding.UTF8.GetBytes(status);
+    try {
+        await frontendSocket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+    } catch { }
+}
+
 // Connect to Pi and listen for autonomous images
 _ = Task.Run(async () => {
+    bool wasPiConnected = false;
     while (true) {
         try {
             if (persistentPiSocket.State != WebSocketState.Open) {
                 persistentPiSocket = new ClientWebSocket();
                 await persistentPiSocket.ConnectAsync(piUri, CancellationToken.None);
                 Console.WriteLine("Persistent Pi connection established!");
+                wasPiConnected = true;
+                await SendStatusToFrontend(true);
             }
-            
+
             var buffer = new byte[1024 * 1024 * 5]; // 5MB
             var result = await persistentPiSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
             string message = System.Text.Encoding.UTF8.GetString(buffer, 0, result.Count);
-            
+
             // Forward to frontend if we have a connected frontend socket
             if (frontendSocket != null && frontendSocket.State == WebSocketState.Open) {
                 byte[] responseBuffer = System.Text.Encoding.UTF8.GetBytes(message);
@@ -43,6 +55,10 @@ _ = Task.Run(async () => {
             }
         } catch (Exception ex) {
             Console.WriteLine($"Pi connection error: {ex.Message} — retrying in 2s");
+            if (wasPiConnected) {
+                wasPiConnected = false;
+                await SendStatusToFrontend(false);
+            }
             await Task.Delay(2000);
         }
     }
