@@ -112,7 +112,7 @@ def _do_turn():
     while True:
         time.sleep(0.01)
         moved = abs(_get_left() - L0)
-        if moved >= TICKS_FOR_90 * 0.95:
+        if moved >= TICKS_FOR_90:
             break
     _motors_stop()
 
