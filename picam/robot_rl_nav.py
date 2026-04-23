@@ -48,7 +48,6 @@ from rl_models import (
     run_tiny_sac,          update_tiny_sac,           nav_score_tiny_sac,
 )
 
-# ── PID motion (left encoder only, all turns are left turns) ───────────────────
 from pid_motion import (
     turn_left_90,
     drive_forward,
@@ -64,18 +63,12 @@ def set_send_callback(callback):
     global send_image_callback
     send_image_callback = callback
 
-# ── Configuration ──────────────────────────────────────────────────────────────
-
 DRIVE_FWD_SEC = 1.5
 STABILISE_SEC = 0.8
-
-# ── Pin definitions ────────────────────────────────────────────────────────────
 
 AIN1, AIN2, PWMA = 6,  5,  12
 BIN1, BIN2, PWMB = 16, 26, 13
 STBY             = 25
-
-# ── RL model registry ─────────────────────────────────────────────────────────
 
 MODEL_MAP = {
     "random":                 (run_random,                 update_random),
@@ -112,22 +105,15 @@ def set_current_model(model_name: str):
     current_model = model_name
     print(f"  [Nav] Active model switched to: {current_model}")
 
-# ── pigpio init ────────────────────────────────────────────────────────────────
-# Note: pid_motion.py owns the pigpio instance for motor + encoder control.
-# This pi instance is only used for STBY and PWM cleanup on shutdown.
-
 pi = pigpio.pi()
 if not pi.connected:
     raise RuntimeError("Cannot connect to pigpiod — run 'sudo pigpiod' first.")
 
 for pin in [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY]:
     pi.set_mode(pin, pigpio.OUTPUT)
-
 pi.set_PWM_range(PWMA, 255);      pi.set_PWM_range(PWMB, 255)
 pi.set_PWM_frequency(PWMA, 1000); pi.set_PWM_frequency(PWMB, 1000)
 pi.write(STBY, 1)
-
-# ── Camera ─────────────────────────────────────────────────────────────────────
 
 _SCRIPT_DIR     = os.path.dirname(os.path.abspath(__file__))
 _CAPTURE_SCRIPT = os.path.join(_SCRIPT_DIR, "capture_once.py")
@@ -171,16 +157,11 @@ def run_capture() -> str:
         f"capture_once.py failed (rc={proc.returncode}): {proc.stderr.strip()}"
     )
 
-# ── 360° survey ───────────────────────────────────────────────────────────────
-#
-# Surveys by turning LEFT each step.
-# Direction mapping:
-#   dir 0 = forward (original heading)
-#   dir 1 = 90° left
-#   dir 2 = 180° (behind)
-#   dir 3 = 270° left = 90° right
-
 def survey_360() -> list[str]:
+    """
+    Survey by turning LEFT each step.
+    dir 0 = forward, dir 1 = left, dir 2 = behind, dir 3 = right
+    """
     image_paths = []
     for direction in range(4):
         stop(STABILISE_SEC)
@@ -188,10 +169,8 @@ def survey_360() -> list[str]:
         image_paths.append(path)
         print(f"  Captured dir {direction} ({direction * 90}° left) → {path}")
         if direction < 3:
-            turn_left_90()      # PID left turn
+            turn_left_90()
     return image_paths
-
-# ── RL model interface ─────────────────────────────────────────────────────────
 
 def _score_for_direction(run_fn, image_id: str, state: list) -> float:
     nav_fn = NAV_SCORE_MAP.get(current_model)
@@ -251,37 +230,29 @@ def query_rl_model(image_paths: list[str], websocket_send_fn=None) -> list[float
 
     return scores
 
-# ── Direction selection ────────────────────────────────────────────────────────
 
 def pick_best_direction(scores: list[float]) -> int | None:
     if max(scores) == 0.0:
         return None
     best_score = max(scores)
-    # Preference: forward → left → right → behind
-    # In left-turn survey: 0=fwd, 1=left, 3=right, 2=behind
     PREFERENCE = [0, 1, 3, 2]
     for d in PREFERENCE:
         if scores[d] == best_score:
             return d
     return int(scores.index(best_score))
 
-# ── Orientation correction ─────────────────────────────────────────────────────
-#
-# After survey_360() the robot has turned left 3 times (270° left from start).
-# We correct by turning left however many more steps are needed to face best_dir.
-# Since each survey step is a 90° left turn:
-#   current offset after survey = 3 left turns
-#   to face dir N we need N left turns from start
-#   additional left turns needed = (best_dir - 3) % 4
 
 def face_best_direction(best_dir: int):
+    """
+    After survey the robot has turned left 3 times (facing 270° left = 90° right).
+    Turn left however many more steps needed to face best_dir.
+    """
     left_turns_needed = (best_dir - 3) % 4
-    print(f"  Facing 270°L from start → want dir {best_dir} → {left_turns_needed} more left turn(s)")
+    print(f"  Need {left_turns_needed} more left turn(s) to face dir {best_dir}")
     for _ in range(left_turns_needed):
         turn_left_90()
     stop(STABILISE_SEC)
 
-# ── Main loop ─────────────────────────────────────────────────────────────────
 
 def main():
     global is_navigating
