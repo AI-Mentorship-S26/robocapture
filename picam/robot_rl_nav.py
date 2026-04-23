@@ -64,6 +64,12 @@ from rl_models import (
     run_tiny_sac,          update_tiny_sac,           nav_score_tiny_sac,
 )
 is_navigating = False
+should_stop = False
+
+def stop_navigation():
+    global should_stop
+    should_stop = True
+    
 #----
 send_image_callback = None
 def set_send_callback(callback):
@@ -282,33 +288,6 @@ def run_capture() -> str:
         f"capture_once.py failed (rc={proc.returncode}): {proc.stderr.strip()}"
     )
 
-# ── 360° survey ───────────────────────────────────────────────────────────────
-
-def survey_360() -> list[str]:
-    """
-    Capture images in 4 directions (0°, 90°, 180°, 270°) by turning right.
-
-    Returns
-    -------
-    image_paths : list of 4 file path strings
-        [0] → current heading (forward)
-        [1] → 90° right
-        [2] → 180° (behind)
-        [3] → 270° (left / 90° left of forward)
-
-    After this function returns the robot is facing 270° from its original
-    heading.  face_best_direction() corrects that.
-    """
-    image_paths = []
-    for direction in range(4):
-        stop(STABILISE_SEC)          # let vibration die down before shooting
-        path = run_capture()
-        image_paths.append(path)
-        print(f"  Captured dir {direction} ({direction * 90}°) → {path}")
-        if direction < 3:            # no turn after the last shot
-            turn_right_90()
-    return image_paths
-
 # ── RL model interface ─────────────────────────────────────────────────────────
 
 def _score_for_direction(run_fn, image_id: str, state: list) -> float:
@@ -330,27 +309,32 @@ def _score_for_direction(run_fn, image_id: str, state: list) -> float:
     return float(run_fn(image_id, state))
 
 
-def query_rl_model(image_paths: list[str], websocket_send_fn=None) -> list[float]:
-    run_fn, _ = MODEL_MAP[current_model]
-    scores    = []
+# Survey and score.
+
+def survey_and_score() -> list[float]:
+    scores = []
     prev_path = None
+    run_fn, _ = MODEL_MAP[current_model]
 
-    for direction, path in enumerate(image_paths):
+    for direction in range(4):
+        stop(STABILISE_SEC)
+        path = run_capture()
+        print(f"  Captured dir {direction} ({direction * 90}°) → {path}")
+
         image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-
-        should_send, results = pipeline.process_image(
-            path, prev_path, verbose=False
-        )
+        should_send, results = pipeline.process_image(path, prev_path, verbose=False)
         prev_path = path
 
         if not should_send:
             reason = (
-                "too similar to previous"  if not results['stage_0_5']['has_significant_change'] else
-                "quality too low"          if not results['stage_1']['passes'] else
+                "too similar to previous" if not results['stage_0_5']['has_significant_change'] else
+                "quality too low" if not results['stage_1']['passes'] else
                 "rejected by pipeline"
             )
             print(f"  Dir {direction}: pipeline rejected ({reason}) → 0.0")
             scores.append(0.0)
+            if direction < 3:
+                turn_right_90()
             continue
 
         state = [
@@ -364,12 +348,10 @@ def query_rl_model(image_paths: list[str], websocket_send_fn=None) -> list[float
             *results['embedding'],
         ]
 
-        # Get nav score for direction decision
         score = _score_for_direction(run_fn, image_id, state)
         print(f"  Dir {direction} ({direction*90}°): model={current_model} score={score:.4f}")
         scores.append(score)
 
-        # RL send/no-send decision
         rl_decision = run_fn(image_id, state)
         print(f"  Dir {direction}: RL decision = {rl_decision}")
 
@@ -379,7 +361,12 @@ def query_rl_model(image_paths: list[str], websocket_send_fn=None) -> list[float
                 b64 = base64.b64encode(f.read()).decode("utf-8")
             send_image_callback(image_id, b64)
 
+        if direction < 3:
+            turn_right_90()
+
     return scores
+
+
 
 # ── Direction selection ────────────────────────────────────────────────────────
 
@@ -434,22 +421,25 @@ def face_best_direction(best_dir: int, current_offset: int = 3):
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 def main():
-    global is_navigating
+    global is_navigating, should_stop
     print(f"Starting navigation loop  (model: {current_model})")
     cycle = 0
     try:
         while True:
+            if should_stop:
+                should_stop = False
+                is_navigating = False
+                print("Navigation stopped by user.")
+                break
             is_navigating = True
             cycle += 1
             print(f"\n=== Cycle {cycle} ===")
 
             # Phase 1: 360° survey
             print("Surveying...")
-            image_paths = survey_360()
-
             # Phase 2: RL inference
             print("Running RL inference...")
-            scores = query_rl_model(image_paths)
+            scores = survey_and_score()
             print(f"  Scores: {[f'{s:.4f}' for s in scores]}  (model: {current_model})")
 
             best_dir = pick_best_direction(scores)
@@ -473,7 +463,6 @@ def main():
         pi.write(STBY, 0)
         pi.set_PWM_dutycycle(PWMA, 0)
         pi.set_PWM_dutycycle(PWMB, 0)
-        pi.stop()
         print("Robot safely disarmed.")
 
 if __name__ == "__main__":

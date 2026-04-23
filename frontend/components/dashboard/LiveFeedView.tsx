@@ -47,6 +47,9 @@ interface Props {
   currentCaptureMode: "live" | "dataset";
   datasetSavedCount: number;
   currentPipelineWouldSend: boolean | null;
+  navigationStarted: boolean;
+  onStartNavigation: () => void;
+  onStopNavigation: () => void;
   onCapture: () => void;
   onCaptureModeChange: (mode: "live" | "dataset") => void;
   onAction: (action: "+R" | "-P" | "skip") => void;
@@ -69,6 +72,9 @@ export default function LiveFeedView({
   currentCaptureMode,
   datasetSavedCount,
   currentPipelineWouldSend,
+  navigationStarted,
+  onStartNavigation,
+  onStopNavigation,
   onCapture,
   onCaptureModeChange,
   onAction,
@@ -173,12 +179,36 @@ export default function LiveFeedView({
             )}
           </div>
 
-          <button
-            onClick={onCapture}
-            className="w-full py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
-          >
-            {captureMode === "dataset" ? "Capture Dataset Image" : "Capture Image"}
-          </button>
+          {captureMode === "live" && (
+            <div className="flex gap-3">
+              <button
+                onClick={navigationStarted ? onStopNavigation : onStartNavigation}
+                className={`flex-1 py-2.5 rounded-full text-white text-sm font-semibold active:scale-95 transition-all ${
+                  navigationStarted
+                    ? "bg-rose-500 hover:bg-rose-600"
+                    : "bg-blue-500 hover:bg-blue-600"
+                }`}
+              >
+                {navigationStarted ? "Stop Navigation" : "Start Navigation"}
+              </button>
+              <button
+                onClick={onCapture}
+                disabled={navigationStarted}
+                className="flex-1 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all"
+              >
+                Capture Image
+              </button>
+            </div>
+          )}
+
+          {captureMode === "dataset" && (
+            <button
+              onClick={onCapture}
+              className="w-full py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:opacity-80 active:scale-95 transition-all"
+            >
+              Capture Dataset Image
+            </button>
+          )}
         </div>
 
         {loginRequired && (
