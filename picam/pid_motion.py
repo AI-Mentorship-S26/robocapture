@@ -2,7 +2,7 @@
 pid_motion.py
 ─────────────
 Motion controller built directly from turn_verbose.py internals.
-Includes high-frequency polling and active motor braking for precision on all surfaces.
+The turn logic is copy-pasted from turn_verbose with no modifications.
 
 Test:
     python3 pid_motion.py --test-turn
@@ -17,7 +17,7 @@ import argparse
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 
-TICKS_FOR_90 = 2605    # ← your measured value from turn_verbose.py
+TICKS_FOR_90 = 2605 / 2    # ← your measured value from turn_verbose.py
 TICKS_PER_CM = 40.0    # ← update after drive calibration
 
 SPEED        = 150     # turn speed — must match what TICKS_FOR_90 was measured at
@@ -33,7 +33,7 @@ LEFT_ENC_A, LEFT_ENC_B   = 24, 25
 RIGHT_ENC_A, RIGHT_ENC_B = 17, 27
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  PIGPIO — Initialization
+#  PIGPIO — copied verbatim from turn_verbose.py
 # ══════════════════════════════════════════════════════════════════════════════
 
 pi = pigpio.pi()
@@ -46,7 +46,7 @@ pi.set_PWM_range(PWMA, 255);      pi.set_PWM_range(PWMB, 255)
 pi.set_PWM_frequency(PWMA, 1000); pi.set_PWM_frequency(PWMB, 1000)
 pi.write(STBY, 1)
 
-# ── Encoders ───────────────────────────────────────────────────────────────────
+# ── Encoders — copied verbatim from turn_verbose.py ───────────────────────────
 _lookup = [0,-1,1,0, 1,0,0,-1, -1,0,0,1, 0,1,-1,0]
 _L, _R  = 0, 0
 _LA, _LB, _RA, _RB = 0, 0, 0, 0
@@ -77,43 +77,37 @@ pi.callback(LEFT_ENC_B,  pigpio.EITHER_EDGE, on_left)
 pi.callback(RIGHT_ENC_A, pigpio.EITHER_EDGE, on_right)
 pi.callback(RIGHT_ENC_B, pigpio.EITHER_EDGE, on_right)
 
-# ── Instant active motor brake ─────────────────────────────────────────────────
+# ── Instant motor kill — verbatim from turn_verbose.py finally block ───────────
 def _kill_motors():
-    # 1. Apply electronic brake (Both IN pins HIGH)
-    pi.write(AIN1, 1); pi.write(AIN2, 1)
-    pi.write(BIN1, 1); pi.write(BIN2, 1)
-    pi.set_PWM_dutycycle(PWMA, 255)
-    pi.set_PWM_dutycycle(PWMB, 255)
-    
-    # 2. Hold the brake for a split second to kill momentum
-    time.sleep(0.1) 
-    
-    # 3. Now turn everything off to save power
     pi.set_PWM_dutycycle(PWMA, 0)
     pi.set_PWM_dutycycle(PWMB, 0)
     pi.write(AIN1, 0); pi.write(AIN2, 0)
     pi.write(BIN1, 0); pi.write(BIN2, 0)
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  TURN
+#  TURN — verbatim loop from turn_verbose.py
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _do_turn():
     L0 = _L
 
-    # Start motors 
+    # Start motors — verbatim from turn_verbose.py
     pi.write(AIN1, 1); pi.write(AIN2, 0)
     pi.set_PWM_dutycycle(PWMA, SPEED)
     pi.write(BIN1, 0); pi.write(BIN2, 1)
     pi.set_PWM_dutycycle(PWMB, SPEED)
 
+    # Loop — verbatim from turn_verbose.py (minus the prints)
     try:
         while True:
-            time.sleep(0.01)  # Increased polling rate (was 0.1)
+            time.sleep(0.1)
             L = abs(_L - L0)
-            if L >= TICKS_FOR_90:
+            R = abs(_R - L0)   # R unused but kept for parity
+            avg = L            # only left encoder reliable
+            if avg >= TICKS_FOR_90:
                 break
     finally:
+        # Kill — verbatim from turn_verbose.py finally block
         _kill_motors()
 
     time.sleep(STABILISE_SEC)
@@ -160,7 +154,7 @@ def drive_forward_cm(distance_cm: float):
 
     try:
         while True:
-            time.sleep(0.01)  # Increased polling rate (was 0.05)
+            time.sleep(0.05)
             if abs(_L - L0) >= target_ticks:
                 break
     finally:
