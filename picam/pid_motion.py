@@ -17,7 +17,7 @@ import argparse
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 
-TICKS_FOR_90 = 2605 / 4    # ← your measured value from turn_verbose.py
+TICKS_FOR_90 = 2605    # ← your measured value from turn_verbose.py
 
 SPEED        = 150     # turn speed — must match what TICKS_FOR_90 was measured at
 DRIVE_SPEED  = 180     # forward speed
@@ -28,7 +28,7 @@ STABILISE_SEC = 0.3
 AIN1, AIN2, PWMA     = 6,  5,  12
 BIN1, BIN2, PWMB     = 16, 26, 13
 STBY                 = 25
-LEFT_ENC_A, LEFT_ENC_B   = 24, 25
+LEFT_ENC_A, LEFT_ENC_B   = 22, 23
 RIGHT_ENC_A, RIGHT_ENC_B = 17, 27
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -130,11 +130,11 @@ def turn_right_90():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def drive_forward(duration_sec: float = 1.5):
-    """Timed forward drive — identical to original robot_rl_nav.py run_command."""
+    """Timed forward drive — left fwd + right fwd."""
     print(f"  [Drive] {duration_sec:.1f}s at PWM {DRIVE_SPEED}")
-    pi.write(AIN1, 1); pi.write(AIN2, 0)
+    pi.write(AIN1, 1); pi.write(AIN2, 0)   # left forward
     pi.set_PWM_dutycycle(PWMA, DRIVE_SPEED)
-    pi.write(BIN1, 1); pi.write(BIN2, 0)
+    pi.write(BIN1, 1); pi.write(BIN2, 0)   # right forward
     pi.set_PWM_dutycycle(PWMB, DRIVE_SPEED)
     time.sleep(duration_sec)
     _kill_motors()
