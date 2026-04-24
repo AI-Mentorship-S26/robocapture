@@ -18,10 +18,9 @@ import argparse
 # ══════════════════════════════════════════════════════════════════════════════
 
 TICKS_FOR_90 = 2605 / 4
-TICKS_PER_CM = 40.0 #  update after drive calibration
-
-SPEED = 150     # turn speed must match what TICKS_FOR_90 was measured at
-DRIVE_SPEED = 180     # forward speed
+TICKS_PER_CM = 40.0 
+SPEED = 150
+DRIVE_SPEED = 180 
 
 STABILISE_SEC = 0.3
 
