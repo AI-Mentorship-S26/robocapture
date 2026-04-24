@@ -51,9 +51,6 @@ from rl_models import (
 from pid_motion import (
     turn_left_90,
     drive_forward,
-    drive_forward_cm,
-    get_total_distance_cm,
-    reset_distance,
 )
 
 is_navigating = False
@@ -257,7 +254,6 @@ def face_best_direction(best_dir: int):
 def main():
     global is_navigating
     print(f"Starting navigation loop  (model: {current_model})")
-    reset_distance()
     cycle = 0
     try:
         while True:
@@ -283,7 +279,6 @@ def main():
 
             face_best_direction(best_dir)
             drive_forward(DRIVE_FWD_SEC)
-            print(f"  Odometer: {get_total_distance_cm():.1f} cm total")
 
     except KeyboardInterrupt:
         print("\nInterrupted by user.")
