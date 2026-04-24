@@ -17,18 +17,19 @@ import argparse
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 
-TICKS_FOR_90 = 2605 / 4
-TICKS_PER_CM = 40.0 
-SPEED = 150
-DRIVE_SPEED = 180 
+TICKS_FOR_90 = 2605    # ← your measured value from turn_verbose.py
+TICKS_PER_CM = 40.0    # ← update after drive calibration
+
+SPEED        = 150     # turn speed — must match what TICKS_FOR_90 was measured at
+DRIVE_SPEED  = 180     # forward speed
 
 STABILISE_SEC = 0.3
 
 # ── Pins ───────────────────────────────────────────────────────────────────────
-AIN1, AIN2, PWMA = 6,  5,  12
-BIN1, BIN2, PWMB = 16, 26, 13
-STBY = 25
-LEFT_ENC_A, LEFT_ENC_B = 24, 25
+AIN1, AIN2, PWMA     = 6,  5,  12
+BIN1, BIN2, PWMB     = 16, 26, 13
+STBY                 = 25
+LEFT_ENC_A, LEFT_ENC_B   = 24, 25
 RIGHT_ENC_A, RIGHT_ENC_B = 17, 27
 
 # ══════════════════════════════════════════════════════════════════════════════
