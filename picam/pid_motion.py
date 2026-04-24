@@ -17,8 +17,7 @@ import argparse
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 
-TICKS_FOR_90 = (2605 / 4) - 100   # ← your measured value from turn_verbose.py
-TICKS_PER_CM = 40.0    # ← update after drive calibration
+TICKS_FOR_90 = 2605    # ← your measured value from turn_verbose.py
 
 SPEED        = 150     # turn speed — must match what TICKS_FOR_90 was measured at
 DRIVE_SPEED  = 180     # forward speed
@@ -127,48 +126,20 @@ def turn_right_90():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DRIVE FORWARD
+#  DRIVE FORWARD — simple timed drive, same as original robot_rl_nav.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-_total_distance_cm = 0.0
-
-def get_total_distance_cm():
-    return _total_distance_cm
-
-def reset_distance():
-    global _total_distance_cm
-    _total_distance_cm = 0.0
-
-
-def drive_forward_cm(distance_cm: float):
-    global _total_distance_cm
-    target_ticks = distance_cm * TICKS_PER_CM
-    L0 = _L
-
-    print(f"  [Drive] {distance_cm:.1f}cm ({int(target_ticks)} ticks)")
-
+def drive_forward(duration_sec: float = 1.5):
+    """Timed forward drive — identical to original robot_rl_nav.py run_command."""
+    print(f"  [Drive] {duration_sec:.1f}s at PWM {DRIVE_SPEED}")
     pi.write(AIN1, 1); pi.write(AIN2, 0)
     pi.set_PWM_dutycycle(PWMA, DRIVE_SPEED)
     pi.write(BIN1, 1); pi.write(BIN2, 0)
     pi.set_PWM_dutycycle(PWMB, DRIVE_SPEED)
-
-    try:
-        while True:
-            time.sleep(0.05)
-            if abs(_L - L0) >= target_ticks:
-                break
-    finally:
-        _kill_motors()
-
-    actual_cm = abs(_L - L0) / TICKS_PER_CM
-    _total_distance_cm += actual_cm
-    print(f"  [Drive] done  actual={actual_cm:.2f}cm  total={_total_distance_cm:.2f}cm")
-    time.sleep(STABILISE_SEC)
-
-
-def drive_forward(duration_sec: float = 1.5):
-    """Shim for robot_rl_nav.py — converts seconds to cm."""
-    drive_forward_cm(duration_sec * 25.0)
+    time.sleep(duration_sec)
+    _kill_motors()
+    time.sleep(0.05)
+    print("  [Drive] done")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -182,9 +153,8 @@ def test_turn():
     print(f"  Ticks moved: {abs(_L - L0)}  (target {TICKS_FOR_90})")
 
 def test_drive():
-    print("Testing 30cm forward drive")
-    drive_forward_cm(30.0)
-    print(f"  Odometer: {get_total_distance_cm():.2f}cm")
+    print("Testing 1.5s forward drive")
+    drive_forward(1.5)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
