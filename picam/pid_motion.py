@@ -97,16 +97,17 @@ def _do_turn():
     pi.set_PWM_dutycycle(PWMB, SPEED)
 
     # Loop — verbatim from turn_verbose.py (minus the prints)
+    cycle = 0
     try:
         while True:
             time.sleep(0.1)
             L = abs(_L - L0)
-            R = abs(_R - L0)   # R unused but kept for parity
-            avg = L            # only left encoder reliable
-            if avg >= TICKS_FOR_90:
+            cycle += 1
+            print(f"  cycle={cycle:4d}  L={L:6d}  target={TICKS_FOR_90}")
+            if L >= TICKS_FOR_90:
+                print("  TARGET REACHED — stopping")
                 break
     finally:
-        # Kill — verbatim from turn_verbose.py finally block
         _kill_motors()
 
     time.sleep(STABILISE_SEC)
