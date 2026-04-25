@@ -51,8 +51,6 @@ def _run_nav():
         print(f"\n[NAV THREAD CRASHED] {e}", flush=True)
         import traceback; traceback.print_exc()
 
-threading.Thread(target=_run_nav, daemon=True).start()
-
 PI_PORT = 8765
 pipeline = robot_rl_nav.pipeline  # reuse already-loaded MobileNetV2 instance
 nav_image_queue: asyncio.Queue = None  # initialised inside asyncio.run() to bind to the correct event loop
