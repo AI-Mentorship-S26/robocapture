@@ -98,7 +98,7 @@ def _do_turn():
     cycle = 0
     try:
         while True:
-            time.sleep(0.1)
+            time.sleep(0.05)
             L = abs(_L - L0)
             cycle += 1
             print(f"  cycle={cycle:4d}  L={L:6d}  target={TICKS_FOR_90}")
