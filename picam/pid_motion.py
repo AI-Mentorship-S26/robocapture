@@ -17,7 +17,7 @@ import argparse
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 
-TICKS_FOR_90 = 2605 / 4    # ← your measured value from turn_verbose.py
+TICKS_FOR_90 = (2605 / 4)    # ← your measured value from turn_verbose.py
 
 SPEED        = 150     # turn speed — must match what TICKS_FOR_90 was measured at
 DRIVE_SPEED  = 180     # forward speed
@@ -98,7 +98,7 @@ def _do_turn():
     cycle = 0
     try:
         while True:
-            time.sleep(0.05)
+            time.sleep(0.01)
             L = abs(_L - L0)
             cycle += 1
             print(f"  cycle={cycle:4d}  L={L:6d}  target={TICKS_FOR_90}")
