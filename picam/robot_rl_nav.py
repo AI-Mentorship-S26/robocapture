@@ -29,7 +29,6 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-import pigpio
 
 sys.path.insert(0, str(Path(__file__).parent))
 from image_preprocessing import ImagePreprocessingPipeline
@@ -44,8 +43,8 @@ from rl_models import (
     run_tiny_sac,          update_tiny_sac,           nav_score_tiny_sac,
 )
 
-# ── Encoder turns only — pid_motion owns its own pigpio instance ───────────────
-from pid_motion import turn_left_90, drive_forward
+# ── All motor control via pid_motion — single pigpio instance ─────────────────
+from pid_motion import turn_left_90, drive_forward, pi, STABILISE_SEC as _STAB
 
 is_navigating = False
 
@@ -56,15 +55,8 @@ def set_send_callback(callback):
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
-DRIVE_SPEED   = 200
-TURN_SPEED    = 150
 DRIVE_FWD_SEC = 1.5
-STABILISE_SEC = 0.3
-
-# ── Pin definitions ────────────────────────────────────────────────────────────
-
-AIN1, AIN2, PWMA = 6,  5,  12
-BIN1, BIN2, PWMB = 16, 26, 13
+STABILISE_SEC = _STAB
 
 # ── RL model registry ─────────────────────────────────────────────────────────
 
@@ -101,28 +93,16 @@ def set_current_model(model_name: str):
     current_model = model_name
     print(f"  [Nav] Active model switched to: {current_model}")
 
-# ── pigpio init — owns drive/stop only, pid_motion owns encoder turns ──────────
-
-pi = pigpio.pi()
-if not pi.connected:
-    raise RuntimeError("Cannot connect to pigpiod — run 'sudo pigpiod' first.")
-
-for pin in [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB]:
-    pi.set_mode(pin, pigpio.OUTPUT)
-
-pi.set_PWM_range(PWMA, 255);      pi.set_PWM_range(PWMB, 255)
-pi.set_PWM_frequency(PWMA, 1000); pi.set_PWM_frequency(PWMB, 1000)
-
 # ── Camera ─────────────────────────────────────────────────────────────────────
 
 _SCRIPT_DIR     = os.path.dirname(os.path.abspath(__file__))
 _CAPTURE_SCRIPT = os.path.join(_SCRIPT_DIR, "capture_once.py")
 
-# ── stop — still needed for survey stabilise pauses ───────────────────────────
+# ── stop — uses pid_motion's pi instance ──────────────────────────────────────
 
 def stop(duration: float = STABILISE_SEC):
-    pi.set_PWM_dutycycle(PWMA, 0)
-    pi.set_PWM_dutycycle(PWMB, 0)
+    from pid_motion import _kill_motors
+    _kill_motors()
     time.sleep(duration)
 
 # ── Camera capture ─────────────────────────────────────────────────────────────
@@ -270,8 +250,8 @@ def main():
         print("\nInterrupted by user.")
     finally:
         is_navigating = False
-        pi.set_PWM_dutycycle(PWMA, 0)
-        pi.set_PWM_dutycycle(PWMB, 0)
+        from pid_motion import _kill_motors
+        _kill_motors()
         pi.stop()
         print("Robot safely disarmed.")
 
