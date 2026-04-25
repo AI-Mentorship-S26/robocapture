@@ -214,7 +214,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "csv_file",
         nargs="?",
-        default="dataset.csv",
+        default="datasets/labeled_dataset.csv",
         help="Path to a CSV containing at least 'state' and 'label' columns.",
     )
     parser.add_argument(
