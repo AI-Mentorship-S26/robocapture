@@ -27,8 +27,7 @@ STABILISE_SEC = 0.3
 # ── Pins ───────────────────────────────────────────────────────────────────────
 AIN1, AIN2, PWMA     = 6,  5,  12
 BIN1, BIN2, PWMB     = 16, 26, 13
-STBY                 = 25
-LEFT_ENC_A, LEFT_ENC_B   = 22, 23
+LEFT_ENC_A, LEFT_ENC_B   = 25, 24
 RIGHT_ENC_A, RIGHT_ENC_B = 17, 27
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -39,11 +38,10 @@ pi = pigpio.pi()
 if not pi.connected:
     raise RuntimeError("Cannot connect to pigpiod — run 'sudo pigpiod' first.")
 
-for pin in [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY]:
+for pin in [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB]:
     pi.set_mode(pin, pigpio.OUTPUT)
 pi.set_PWM_range(PWMA, 255);      pi.set_PWM_range(PWMB, 255)
 pi.set_PWM_frequency(PWMA, 1000); pi.set_PWM_frequency(PWMB, 1000)
-pi.write(STBY, 1)
 
 # ── Encoders — copied verbatim from turn_verbose.py ───────────────────────────
 _lookup = [0,-1,1,0, 1,0,0,-1, -1,0,0,1, 0,1,-1,0]
@@ -172,5 +170,4 @@ if __name__ == "__main__":
             parser.print_help()
     finally:
         _kill_motors()
-        pi.write(STBY, 0)
         pi.stop()
