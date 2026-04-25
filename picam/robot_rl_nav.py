@@ -45,7 +45,7 @@ from rl_models import (
 )
 
 # ── Encoder turns only — pid_motion owns its own pigpio instance ───────────────
-from pid_motion import turn_left_90
+from pid_motion import turn_left_90, drive_forward
 
 is_navigating = False
 
@@ -65,7 +65,6 @@ STABILISE_SEC = 0.3
 
 AIN1, AIN2, PWMA = 6,  5,  12
 BIN1, BIN2, PWMB = 16, 26, 13
-STBY             = 25
 
 # ── RL model registry ─────────────────────────────────────────────────────────
 
@@ -108,51 +107,23 @@ pi = pigpio.pi()
 if not pi.connected:
     raise RuntimeError("Cannot connect to pigpiod — run 'sudo pigpiod' first.")
 
-for pin in [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY]:
+for pin in [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB]:
     pi.set_mode(pin, pigpio.OUTPUT)
 
 pi.set_PWM_range(PWMA, 255);      pi.set_PWM_range(PWMB, 255)
 pi.set_PWM_frequency(PWMA, 1000); pi.set_PWM_frequency(PWMB, 1000)
-pi.write(STBY, 1)
 
 # ── Camera ─────────────────────────────────────────────────────────────────────
 
 _SCRIPT_DIR     = os.path.dirname(os.path.abspath(__file__))
 _CAPTURE_SCRIPT = os.path.join(_SCRIPT_DIR, "capture_once.py")
 
-# ── Motor control — original unchanged from old robot_rl_nav.py ───────────────
-
-def set_motors(left_speed: int, right_speed: int):
-    left_speed  = max(-255, min(255, left_speed))
-    right_speed = max(-255, min(255, right_speed))
-
-    if left_speed >= 0:
-        pi.write(AIN1, 1); pi.write(AIN2, 0)
-        pi.set_PWM_dutycycle(PWMA, left_speed)
-    else:
-        pi.write(AIN1, 0); pi.write(AIN2, 1)
-        pi.set_PWM_dutycycle(PWMA, abs(left_speed))
-
-    if right_speed >= 0:
-        pi.write(BIN1, 1); pi.write(BIN2, 0)
-        pi.set_PWM_dutycycle(PWMB, right_speed)
-    else:
-        pi.write(BIN1, 0); pi.write(BIN2, 1)
-        pi.set_PWM_dutycycle(PWMB, abs(right_speed))
-
-def run_command(left: int, right: int, duration: float, label: str = ""):
-    if label:
-        print(f"  [{label}] L={left} R={right} for {duration:.2f}s")
-    set_motors(left, right)
-    time.sleep(duration)
-    set_motors(0, 0)
-    time.sleep(0.05)
+# ── stop — still needed for survey stabilise pauses ───────────────────────────
 
 def stop(duration: float = STABILISE_SEC):
-    run_command(0, 0, duration, "Stop")
-
-def drive_forward(duration: float = DRIVE_FWD_SEC):
-    run_command(DRIVE_SPEED, DRIVE_SPEED, duration, "Forward")
+    pi.set_PWM_dutycycle(PWMA, 0)
+    pi.set_PWM_dutycycle(PWMB, 0)
+    time.sleep(duration)
 
 # ── Camera capture ─────────────────────────────────────────────────────────────
 
@@ -299,7 +270,6 @@ def main():
         print("\nInterrupted by user.")
     finally:
         is_navigating = False
-        pi.write(STBY, 0)
         pi.set_PWM_dutycycle(PWMA, 0)
         pi.set_PWM_dutycycle(PWMB, 0)
         pi.stop()
