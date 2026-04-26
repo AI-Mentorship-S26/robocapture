@@ -17,8 +17,7 @@ import argparse
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 
-TICKS_FOR_90 = (2605 / 4) - 100   # ← your measured value from turn_verbose.py
-TICKS_PER_CM = 40.0    # ← update after drive calibration
+TICKS_FOR_90 = (2605 / 4) - 250    # ← your measured value from turn_verbose.py
 
 SPEED        = 150     # turn speed — must match what TICKS_FOR_90 was measured at
 DRIVE_SPEED  = 180     # forward speed
@@ -28,8 +27,7 @@ STABILISE_SEC = 0.3
 # ── Pins ───────────────────────────────────────────────────────────────────────
 AIN1, AIN2, PWMA     = 6,  5,  12
 BIN1, BIN2, PWMB     = 16, 26, 13
-STBY                 = 25
-LEFT_ENC_A, LEFT_ENC_B   = 24, 25
+LEFT_ENC_A, LEFT_ENC_B   = 25, 24
 RIGHT_ENC_A, RIGHT_ENC_B = 17, 27
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -40,11 +38,10 @@ pi = pigpio.pi()
 if not pi.connected:
     raise RuntimeError("Cannot connect to pigpiod — run 'sudo pigpiod' first.")
 
-for pin in [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB, STBY]:
+for pin in [AIN1, AIN2, PWMA, BIN1, BIN2, PWMB]:
     pi.set_mode(pin, pigpio.OUTPUT)
 pi.set_PWM_range(PWMA, 255);      pi.set_PWM_range(PWMB, 255)
 pi.set_PWM_frequency(PWMA, 1000); pi.set_PWM_frequency(PWMB, 1000)
-pi.write(STBY, 1)
 
 # ── Encoders — copied verbatim from turn_verbose.py ───────────────────────────
 _lookup = [0,-1,1,0, 1,0,0,-1, -1,0,0,1, 0,1,-1,0]
@@ -98,16 +95,17 @@ def _do_turn():
     pi.set_PWM_dutycycle(PWMB, SPEED)
 
     # Loop — verbatim from turn_verbose.py (minus the prints)
+    cycle = 0
     try:
         while True:
             time.sleep(0.1)
             L = abs(_L - L0)
-            R = abs(_R - L0)   # R unused but kept for parity
-            avg = L            # only left encoder reliable
-            if avg >= TICKS_FOR_90:
+            cycle += 1
+            print(f"  cycle={cycle:4d}  L={L:6d}  target={TICKS_FOR_90}")
+            if L >= TICKS_FOR_90:
+                print("  TARGET REACHED — stopping")
                 break
     finally:
-        # Kill — verbatim from turn_verbose.py finally block
         _kill_motors()
 
     time.sleep(STABILISE_SEC)
@@ -127,48 +125,20 @@ def turn_right_90():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  DRIVE FORWARD
+#  DRIVE FORWARD — simple timed drive, same as original robot_rl_nav.py
 # ══════════════════════════════════════════════════════════════════════════════
 
-_total_distance_cm = 0.0
-
-def get_total_distance_cm():
-    return _total_distance_cm
-
-def reset_distance():
-    global _total_distance_cm
-    _total_distance_cm = 0.0
-
-
-def drive_forward_cm(distance_cm: float):
-    global _total_distance_cm
-    target_ticks = distance_cm * TICKS_PER_CM
-    L0 = _L
-
-    print(f"  [Drive] {distance_cm:.1f}cm ({int(target_ticks)} ticks)")
-
+def drive_forward(duration_sec: float = 1.5):
+    """Timed forward drive — left fwd + right fwd."""
+    print(f"  [Drive] {duration_sec:.1f}s at PWM {DRIVE_SPEED}")
     pi.write(AIN1, 1); pi.write(AIN2, 0)
     pi.set_PWM_dutycycle(PWMA, DRIVE_SPEED)
     pi.write(BIN1, 1); pi.write(BIN2, 0)
     pi.set_PWM_dutycycle(PWMB, DRIVE_SPEED)
-
-    try:
-        while True:
-            time.sleep(0.05)
-            if abs(_L - L0) >= target_ticks:
-                break
-    finally:
-        _kill_motors()
-
-    actual_cm = abs(_L - L0) / TICKS_PER_CM
-    _total_distance_cm += actual_cm
-    print(f"  [Drive] done  actual={actual_cm:.2f}cm  total={_total_distance_cm:.2f}cm")
-    time.sleep(STABILISE_SEC)
-
-
-def drive_forward(duration_sec: float = 1.5):
-    """Shim for robot_rl_nav.py — converts seconds to cm."""
-    drive_forward_cm(duration_sec * 25.0)
+    time.sleep(duration_sec)
+    _kill_motors()
+    time.sleep(0.05)
+    print("  [Drive] done")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -182,9 +152,8 @@ def test_turn():
     print(f"  Ticks moved: {abs(_L - L0)}  (target {TICKS_FOR_90})")
 
 def test_drive():
-    print("Testing 30cm forward drive")
-    drive_forward_cm(30.0)
-    print(f"  Odometer: {get_total_distance_cm():.2f}cm")
+    print("Testing 1.5s forward drive")
+    drive_forward(1.5)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -201,5 +170,4 @@ if __name__ == "__main__":
             parser.print_help()
     finally:
         _kill_motors()
-        pi.write(STBY, 0)
         pi.stop()
