@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 
 
-MODEL_STORE_DIR = Path(__file__).resolve().parent.parent / "saved_models"
+MODEL_STORE_DIR = Path.home() / ".robocapture" / "saved_models"
 
 
 def model_file(stem: str, suffix: str) -> Path:

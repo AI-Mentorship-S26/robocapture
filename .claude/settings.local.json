@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv-1/Scripts/python picam/plot_model_accuracy.py --online --shuffle)"
+    ]
+  }
+}

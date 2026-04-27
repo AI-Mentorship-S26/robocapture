@@ -278,26 +278,26 @@ def main() -> None:
 
     df = load_dataset()
 
-    if args.online:
-        # Chronological order is meaningful for online learning
-        df = df.sort_values("image_id").reset_index(drop=True)
-        print("[info] Online mode: chronological order, test-then-train each image.")
-    elif args.shuffle:
+    if args.shuffle:
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
         print("[info] Rows shuffled — distribution shift removed.")
+    elif args.online:
+        df = df.sort_values("image_id").reset_index(drop=True)
+        print("[info] Online mode: chronological order.")
 
     run_fns, update_fns = load_model_runners()
 
     results = {}
     if args.online:
-        print("\n[info] Running prequential evaluation (predict -> update -> next)...")
+        mode = "shuffled + online" if args.shuffle else "online (chronological)"
+        print(f"\n[info] Running prequential evaluation ({mode})...")
         for name in MODEL_ORDER:
             if name not in run_fns:
                 continue
             results[name] = run_model_online(
                 name, run_fns[name], update_fns[name], df
             )
-        suffix = "_online"
+        suffix = "_shuffled_online" if args.shuffle else "_online"
     else:
         print("\n[info] Running static inference (no training)...")
         for name in MODEL_ORDER:
