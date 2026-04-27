@@ -47,8 +47,8 @@ class AACObject:
         self.actor_optimizer = None
         self.critic_optimizer = None
         self.input_size = None
-        self.actor_learning_rate = 6e-5
-        self.critic_learning_rate = 6e-5
+        self.actor_learning_rate = 1e-3     # was 6e-5 — too slow for <1000 samples
+        self.critic_learning_rate = 1e-3
         self.update_count = 0
         self.last_reward = None
         self.last_updated_at = None
@@ -61,8 +61,8 @@ class AACObject:
         self.input_size = n_inputs
         self.actor_model = Actor(n_inputs, n_actions=2)
         self.critic_model = Critic(n_inputs)
-        self.actor_optimizer = optim.Adam(self.actor_model.parameters(), lr=self.actor_learning_rate)
-        self.critic_optimizer = optim.Adam(self.critic_model.parameters(), lr=self.critic_learning_rate)
+        self.actor_optimizer = optim.Adam(self.actor_model.parameters(), lr=self.actor_learning_rate, weight_decay=1e-4)
+        self.critic_optimizer = optim.Adam(self.critic_model.parameters(), lr=self.critic_learning_rate, weight_decay=1e-4)
 
     def record(self, image_id, state, action):
         self.ensure_initialized(len(state))

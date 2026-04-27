@@ -28,42 +28,54 @@ class QNetwork(nn.Module):
 class DeepContextualBanditObject:
     def __init__(self):
         self.history = {}
-        self.state_size = STATE_SIZE
+        self.state_size = None          # set lazily on first state seen
         self.n_actions = ACTION_SIZE
         self.epsilon = 0.5
-        self.epsilon_decay = 0.999
+        self.epsilon_decay = 0.99       # was 0.999 — decays in ~300 steps now vs ~3000
         self.epsilon_min = 0.05
         self.learning_rate = 0.001
         self.update_count = 0
         self.last_reward = None
         self.last_updated_at = None
         self.checkpoint_path = model_file("deep_contextual_bandit", ".pt")
-        self.network = QNetwork(self.state_size, self.n_actions)
-        self.optimizer = optim.Adam(self.network.parameters(), lr=self.learning_rate)
+        self.network = None             # initialized lazily
+        self.optimizer = None
         self.loss_fn = nn.MSELoss()
         self.load()
 
+    def _ensure_initialized(self, state_size: int) -> None:
+        if self.network is not None:
+            return
+        self.state_size = state_size
+        self.network   = QNetwork(self.state_size, self.n_actions)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=self.learning_rate, weight_decay=1e-4)
+
     def normalize_state(self, state):
         state_array = np.array(state)
-        metrics   = state_array[:7]
-        embedding = state_array[7:]
-        metrics_norm   = (metrics   - np.mean(metrics))   / (np.std(metrics)   + 1e-8)
-        embedding_norm = (embedding - np.mean(embedding)) / (np.std(embedding) + 1e-8)
-        return np.concatenate([metrics_norm, embedding_norm])
+        if len(state_array) > 7:
+            metrics   = state_array[:7]
+            embedding = state_array[7:]
+            metrics_norm   = (metrics   - np.mean(metrics))   / (np.std(metrics)   + 1e-8)
+            embedding_norm = (embedding - np.mean(embedding)) / (np.std(embedding) + 1e-8)
+            return np.concatenate([metrics_norm, embedding_norm])
+        return (state_array - np.mean(state_array)) / (np.std(state_array) + 1e-8)
 
     def predict(self, state):
+        self._ensure_initialized(len(state))
         state_tensor = torch.FloatTensor(self.normalize_state(state)).unsqueeze(0)
         with torch.no_grad():
             q_values = self.network(state_tensor)
         return q_values.squeeze().numpy()
 
     def choose_action(self, state):
+        self._ensure_initialized(len(state))
         q_values = self.predict(state)
         if np.random.random() < self.epsilon:
             return np.random.randint(0, 2)
         return int(np.argmax(q_values))
 
     def record(self, image_id, state, action):
+        self._ensure_initialized(len(state))
         self.history[image_id] = (state, action)
 
     def save(self):
@@ -98,8 +110,7 @@ class DeepContextualBanditObject:
         self.update_count  = checkpoint.get("update_count",  self.update_count)
         self.last_reward   = checkpoint.get("last_reward",   self.last_reward)
         self.last_updated_at = checkpoint.get("last_updated_at", self.last_updated_at)
-        self.network = QNetwork(self.state_size, self.n_actions)
-        self.optimizer = optim.Adam(self.network.parameters(), lr=self.learning_rate)
+        self._ensure_initialized(self.state_size)
         self.network.load_state_dict(checkpoint["network_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 

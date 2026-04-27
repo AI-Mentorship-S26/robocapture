@@ -30,21 +30,20 @@ class ReinforceObject:
         self.actor_model = None
         self.optimizer = None
         self.gamma = 0.99
-        self.learning_rate = 1e-4
+        self.learning_rate = 1e-3       # was 1e-4 — too slow for <1000 samples
         self.input_size = None
         self.update_count = 0
         self.last_reward = None
         self.last_updated_at = None
         self.checkpoint_path = model_file("reinforce", ".pt")
-        self.ensure_initialized(STATE_SIZE)
-        self.load()
+        self.load()                     # lazy init — network created on first record()
 
     def ensure_initialized(self, n_inputs):
         if self.actor_model is not None:
             return
         self.input_size = n_inputs
         self.actor_model = Actor(n_inputs, n_actions=2)
-        self.optimizer = optim.Adam(self.actor_model.parameters(), lr=self.learning_rate)
+        self.optimizer = optim.Adam(self.actor_model.parameters(), lr=self.learning_rate, weight_decay=1e-4)
 
     def record(self, image_id, state, action):
         self.ensure_initialized(len(state))

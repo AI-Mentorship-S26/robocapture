@@ -59,16 +59,12 @@ MODEL_COLORS = {
 
 # ── Load CSV ──────────────────────────────────────────────────────────────────
 
-def load_dataset() -> pd.DataFrame:
+def load_dataset(features_only: bool = False) -> pd.DataFrame:
     df = pd.read_csv(CSV_PATH, usecols=["image_id", "label", "state"],
                      dtype={"image_id": str, "label": str})
     df["gt"] = df["label"].map({"reward": 1, "punishment": 0})
     df = df.dropna(subset=["gt", "state"]).reset_index(drop=True)
 
-    print(f"[info] Loaded {len(df)} rows  (reward={df['gt'].sum():.0f}, "
-          f"punishment={(df['gt']==0).sum():.0f})")
-
-    # Parse state column: stored as a JSON/Python list string
     def parse_state(s: str) -> list:
         try:
             return json.loads(s)
@@ -76,6 +72,16 @@ def load_dataset() -> pd.DataFrame:
             return ast.literal_eval(s)
 
     df["state_vec"] = df["state"].apply(parse_state)
+
+    if features_only:
+        # Use only the 7 hand-crafted metrics — drops the 1280-dim embedding.
+        # Smaller state space means models generalize across images instead of
+        # treating every frame as a unique unseen state.
+        df["state_vec"] = df["state_vec"].apply(lambda v: v[:7])
+        print(f"[info] Features-only mode: state reduced 1287 -> 7 dims")
+
+    print(f"[info] Loaded {len(df)} rows  (reward={df['gt'].sum():.0f}, "
+          f"punishment={(df['gt']==0).sum():.0f})")
     return df
 
 # ── Import RL model runners ───────────────────────────────────────────────────
@@ -132,7 +138,8 @@ def run_model_on_dataset(name: str, run_fn, df: pd.DataFrame) -> np.ndarray:
 
 # ── Run online (prequential) evaluation ───────────────────────────────────────
 
-def run_model_online(name: str, run_fn, update_fn, df: pd.DataFrame) -> np.ndarray:
+def run_model_online(name: str, run_fn, update_fn, df: pd.DataFrame,
+                     epochs: int = 1) -> np.ndarray:
     """
     Prequential (test-then-train) evaluation:
       1. Model predicts on image i  →  record correct/wrong
@@ -142,6 +149,18 @@ def run_model_online(name: str, run_fn, update_fn, df: pd.DataFrame) -> np.ndarr
     This shows the learning curve — how accuracy improves as the model
     sees more labeled examples. Data must be in chronological order.
     """
+    # Train-only passes first (epochs-1 times), then one final test-then-train pass
+    for epoch in range(epochs - 1):
+        for _, row in df.iterrows():
+            img_id = f"{row['image_id']}_e{epoch}"   # unique id per epoch
+            reward = 1 if int(row["gt"]) == 1 else -1
+            try:
+                run_fn(img_id, row["state_vec"])
+                update_fn(img_id, reward)
+            except Exception:
+                pass
+
+    # Final pass: test THEN train — this is what gets plotted
     correct = np.zeros(len(df), dtype=bool)
     for i, row in df.iterrows():
         state  = row["state_vec"]
@@ -164,6 +183,42 @@ def run_model_online(name: str, run_fn, update_fn, df: pd.DataFrame) -> np.ndarr
 
     acc = correct.mean() * 100
     print(f"  {name:<26} final accuracy: {acc:.1f}%")
+    return correct
+
+# ── Run holdout (train/test split) evaluation ────────────────────────────────
+
+def run_model_holdout(name: str, run_fn, update_fn,
+                      train_df: pd.DataFrame, test_df: pd.DataFrame,
+                      epochs: int = 1) -> np.ndarray:
+    """
+    Proper supervised holdout evaluation:
+      1. Train on train_df for `epochs` full passes (update after every image)
+      2. Evaluate on held-out test_df — no weight updates during testing
+
+    This isolates train/test so epoch count comparisons are meaningful.
+    Returns bool array over the test set.
+    """
+    for epoch in range(epochs):
+        for _, row in train_df.iterrows():
+            img_id = f"{row['image_id']}_e{epoch}"
+            reward = 1 if int(row["gt"]) == 1 else -1
+            try:
+                run_fn(img_id, row["state_vec"])
+                update_fn(img_id, reward)
+            except Exception:
+                pass
+
+    correct = np.zeros(len(test_df), dtype=bool)
+    for i, (_, row) in enumerate(test_df.iterrows()):
+        try:
+            pred = int(run_fn(row["image_id"], row["state_vec"]))
+        except Exception as exc:
+            print(f"  [warn] {name} predict failed row {i}: {exc}")
+            pred = 0
+        correct[i] = pred == int(row["gt"])
+
+    acc = correct.mean() * 100
+    print(f"  {name:<26} holdout test accuracy ({epochs} ep): {acc:.1f}%")
     return correct
 
 # ── Rolling accuracy ──────────────────────────────────────────────────────────
@@ -272,13 +327,22 @@ def main() -> None:
     parser.add_argument("--window",  type=int, default=WINDOW)
     parser.add_argument("--shuffle", action="store_true",
                         help="Shuffle rows to remove dataset order bias (static mode only)")
-    parser.add_argument("--online",  action="store_true",
-                        help="Prequential (test-then-train) evaluation — shows learning curves")
+    parser.add_argument("--online",        action="store_true",
+                        help="Prequential (test-then-train) evaluation")
+    parser.add_argument("--features-only", action="store_true",
+                        help="Use only 7 hand-crafted features instead of full 1287-dim state")
+    parser.add_argument("--epochs",        type=int, default=1,
+                        help="Training passes before the final evaluation pass (default: 1)")
+    parser.add_argument("--holdout",       action="store_true",
+                        help="Train on --train-size rows, test on the remaining held-out rows")
+    parser.add_argument("--train-size",    type=int, default=500,
+                        help="Number of rows used for training in holdout mode (default: 500)")
     args = parser.parse_args()
 
-    df = load_dataset()
+    df = load_dataset(features_only=args.features_only)
 
-    if args.shuffle:
+    # Always shuffle before a holdout split so the test set isn't all from one session
+    if args.holdout or args.shuffle:
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
         print("[info] Rows shuffled — distribution shift removed.")
     elif args.online:
@@ -288,16 +352,38 @@ def main() -> None:
     run_fns, update_fns = load_model_runners()
 
     results = {}
-    if args.online:
-        mode = "shuffled + online" if args.shuffle else "online (chronological)"
+    if args.holdout:
+        n_train = min(args.train_size, len(df) - 1)
+        train_df = df.iloc[:n_train].reset_index(drop=True)
+        test_df  = df.iloc[n_train:].reset_index(drop=True)
+        print(f"\n[info] Holdout split: {len(train_df)} train / {len(test_df)} test  "
+              f"({args.epochs} epoch{'s' if args.epochs != 1 else ''})")
+        for name in MODEL_ORDER:
+            if name not in run_fns:
+                continue
+            results[name] = run_model_holdout(
+                name, run_fns[name], update_fns[name],
+                train_df, test_df, epochs=args.epochs,
+            )
+        suffix = f"_holdout_{args.epochs}ep"
+        if args.features_only:  suffix += "_7feat"
+    elif args.online:
+        parts = []
+        if args.shuffle:        parts.append("shuffled")
+        if args.features_only:  parts.append("7-features")
+        if args.epochs > 1:     parts.append(f"{args.epochs} epochs")
+        mode = " + ".join(parts) if parts else "chronological"
         print(f"\n[info] Running prequential evaluation ({mode})...")
         for name in MODEL_ORDER:
             if name not in run_fns:
                 continue
             results[name] = run_model_online(
-                name, run_fns[name], update_fns[name], df
+                name, run_fns[name], update_fns[name], df, epochs=args.epochs
             )
-        suffix = "_shuffled_online" if args.shuffle else "_online"
+        suffix = "_online"
+        if args.shuffle:        suffix += "_shuffled"
+        if args.features_only:  suffix += "_7feat"
+        if args.epochs > 1:     suffix += f"_{args.epochs}ep"
     else:
         print("\n[info] Running static inference (no training)...")
         for name in MODEL_ORDER:
