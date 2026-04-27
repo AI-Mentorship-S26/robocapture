@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 class CONTEXTUALBANDITObject:
     def __init__(self):
         self.history = {}
-        self.state_size = 1287
+        self.state_size = None          # set lazily on first state seen
         self.n_actions = 2
-        self.learning_rate = 0.00001
+        self.learning_rate = 0.01       # was 0.00001 — too small for <1000 samples
         self.epsilon = 0.5
         self.epsilon_decay = 0.999
         self.epsilon_min = 0.05
@@ -19,21 +19,31 @@ class CONTEXTUALBANDITObject:
         self.last_reward = None
         self.last_updated_at = None
         self.checkpoint_path = model_file("contextual_bandit", ".pkl")
-        self.weights = np.zeros((self.n_actions, self.state_size))
+        self.weights = None             # initialized lazily
         self.load()
+
+    def _ensure_initialized(self, state_size: int) -> None:
+        if self.weights is not None:
+            return
+        self.state_size = state_size
+        self.weights = np.zeros((self.n_actions, self.state_size))
 
     def normalize_state(self, state):
         state_array = np.array(state)
-        metrics   = state_array[:7]
-        embedding = state_array[7:]
-        metrics_norm   = (metrics   - np.mean(metrics))   / (np.std(metrics)   + 1e-8)
-        embedding_norm = (embedding - np.mean(embedding)) / (np.std(embedding) + 1e-8)
-        return np.concatenate([metrics_norm, embedding_norm])
+        if len(state_array) > 7:
+            metrics   = state_array[:7]
+            embedding = state_array[7:]
+            metrics_norm   = (metrics   - np.mean(metrics))   / (np.std(metrics)   + 1e-8)
+            embedding_norm = (embedding - np.mean(embedding)) / (np.std(embedding) + 1e-8)
+            return np.concatenate([metrics_norm, embedding_norm])
+        return (state_array - np.mean(state_array)) / (np.std(state_array) + 1e-8)
 
     def predict(self, state):
+        self._ensure_initialized(len(state))
         return self.weights @ self.normalize_state(state)
 
     def choose_action(self, state):
+        self._ensure_initialized(len(state))
         predictions = self.predict(state)
         if np.all(predictions == 0.0):
             return 1
@@ -42,6 +52,7 @@ class CONTEXTUALBANDITObject:
         return int(np.argmax(predictions))
 
     def record(self, image_id, state, action):
+        self._ensure_initialized(len(state))
         self.history[image_id] = (state, action)
 
     def save(self):
@@ -76,6 +87,8 @@ class CONTEXTUALBANDITObject:
         self.last_reward   = checkpoint.get("last_reward",   self.last_reward)
         self.last_updated_at = checkpoint.get("last_updated_at", self.last_updated_at)
         self.weights       = checkpoint.get("weights",       self.weights)
+        if self.weights is not None:
+            self.state_size = self.weights.shape[1]
 
     def update(self, image_id, reward):
         if image_id not in self.history:

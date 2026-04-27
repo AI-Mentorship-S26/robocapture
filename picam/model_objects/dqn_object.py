@@ -46,7 +46,7 @@ class DQNObject:
         self.history: dict = {}  # {image_id: (state, action)}
 
         # Epsilon-greedy exploration schedule
-        self.epsilon: float = 1.0
+        self.epsilon: float = 0.3      # was 1.0 — starts mostly exploiting with few samples
         self.epsilon_min: float = 0.05
         self.epsilon_decay: float = 0.995
 
@@ -61,16 +61,24 @@ class DQNObject:
 
         self.memory: deque = deque(maxlen=self.replay_capacity)
 
-        self.model = _QNetwork(state_size, action_size)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self.model = None               # initialized lazily on first state seen
+        self.optimizer = None
         self.loss_fn = nn.MSELoss()
         self.load()
+
+    def _ensure_initialized(self, state_size: int) -> None:
+        if self.model is not None:
+            return
+        self.state_size = state_size
+        self.model     = _QNetwork(self.state_size, self.action_size)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate, weight_decay=1e-4)
 
     # ------------------------------------------------------------------
     # Public interface (matches SARSAObject / pi_server expectations)
     # ------------------------------------------------------------------
 
     def choose_action(self, state: list) -> int:
+        self._ensure_initialized(len(state))
         """Epsilon-greedy action selection.
 
         Parameters
@@ -141,8 +149,7 @@ class DQNObject:
         self.last_updated_at = checkpoint.get("last_updated_at", self.last_updated_at)
 
         self.memory = deque(checkpoint.get("memory", []), maxlen=self.replay_capacity)
-        self.model = _QNetwork(self.state_size, self.action_size)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
+        self._ensure_initialized(self.state_size)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
