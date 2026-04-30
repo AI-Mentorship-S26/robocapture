@@ -267,7 +267,6 @@ def main():
         is_navigating = False
         from pid_motion import _kill_motors
         _kill_motors()
-        pi.stop()
         print("Robot safely disarmed.")
 
 if __name__ == "__main__":
