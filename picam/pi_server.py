@@ -41,6 +41,12 @@ _log("RL models loaded — loading robot_rl_nav + MobileNetV2 (may take 20-40s).
 import threading
 import robot_rl_nav
 
+def nav_image_callback(image_id, b64):
+    if nav_image_queue is not None:
+        nav_image_queue.put_nowait((image_id, b64))
+
+robot_rl_nav.set_send_callback(nav_image_callback)
+
 _log("robot_rl_nav loaded — starting nav thread...")
 
 def _run_nav():

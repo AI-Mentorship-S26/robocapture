@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from image_preprocessing import ImagePreprocessingPipeline
 from rl_models import (
     run_random,            update_random,            nav_score_random,
+    run_deep_contextual_bandit, update_deep_contextual_bandit, nav_score_deep_contextual_bandit,
     run_contextual_bandit, update_contextual_bandit,  nav_score_contextual_bandit,
     run_sarsa,             update_sarsa,              nav_score_sarsa,
     run_dqn,               update_dqn,               nav_score_dqn,
@@ -47,6 +48,11 @@ from rl_models import (
 from pid_motion import turn_left_90, drive_forward, pi, STABILISE_SEC as _STAB
 
 is_navigating = False
+should_stop = False
+
+def stop_navigation():
+    global should_stop
+    should_stop = True
 
 send_image_callback = None
 def set_send_callback(callback):
@@ -62,6 +68,7 @@ STABILISE_SEC = _STAB
 
 MODEL_MAP = {
     "random":            (run_random,            update_random),
+    "deep_contextual_bandit": (run_deep_contextual_bandit, update_deep_contextual_bandit),
     "contextual_bandit": (run_contextual_bandit,  update_contextual_bandit),
     "sarsa":             (run_sarsa,              update_sarsa),
     "dqn":               (run_dqn,               update_dqn),
@@ -73,6 +80,7 @@ MODEL_MAP = {
 
 NAV_SCORE_MAP = {
     "random":            nav_score_random,
+    "deep_contextual_bandit": nav_score_deep_contextual_bandit,
     "contextual_bandit": nav_score_contextual_bandit,
     "sarsa":             nav_score_sarsa,
     "dqn":               nav_score_dqn,
@@ -82,7 +90,7 @@ NAV_SCORE_MAP = {
     "tiny_sac":          nav_score_tiny_sac,
 }
 
-current_model = "sarsa"
+current_model = "deep_contextual_bandit"
 pipeline      = ImagePreprocessingPipeline()
 
 def set_current_model(model_name: str):
@@ -127,49 +135,30 @@ def run_capture() -> str:
 #   dir 2 = 180° (behind)
 #   dir 3 = 270° left = 90° right
 
-def survey_360() -> list[str]:
-    image_paths = []
+def survey_and_score() -> list[float]:
+    scores = []
+    prev_path = None
+    run_fn, _ = MODEL_MAP[current_model]
+
     for direction in range(4):
         stop(STABILISE_SEC)
         path = run_capture()
-        image_paths.append(path)
         print(f"  Captured dir {direction} ({direction * 90}° left) → {path}")
-        if direction < 3:
-            turn_left_90()      # encoder-controlled
-    return image_paths
 
-# ── RL model interface ─────────────────────────────────────────────────────────
-
-def _score_for_direction(run_fn, image_id: str, state: list) -> float:
-    nav_fn = NAV_SCORE_MAP.get(current_model)
-    if nav_fn is not None:
-        score = nav_fn(image_id, state)
-        if score is not None:
-            return score
-    return float(run_fn(image_id, state))
-
-
-def query_rl_model(image_paths: list[str]) -> list[float]:
-    run_fn, _ = MODEL_MAP[current_model]
-    scores    = []
-    prev_path = None
-
-    for direction, path in enumerate(image_paths):
         image_id = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-
-        should_send, results = pipeline.process_image(
-            path, prev_path, verbose=False
-        )
+        should_send, results = pipeline.process_image(path, prev_path, verbose=False)
         prev_path = path
 
         if not should_send:
             reason = (
-                "too similar to previous"  if not results['stage_0_5']['has_significant_change'] else
-                "quality too low"          if not results['stage_1']['passes'] else
+                "too similar to previous" if not results['stage_0_5']['has_significant_change'] else
+                "quality too low" if not results['stage_1']['passes'] else
                 "rejected by pipeline"
             )
             print(f"  Dir {direction}: pipeline rejected ({reason}) → 0.0")
             scores.append(0.0)
+            if direction < 3:
+                turn_left_90()
             continue
 
         state = [
@@ -187,7 +176,30 @@ def query_rl_model(image_paths: list[str]) -> list[float]:
         print(f"  Dir {direction} ({direction*90}° left): model={current_model} score={score:.4f}")
         scores.append(score)
 
+        rl_decision = run_fn(image_id, state)
+        print(f"  Dir {direction}: RL decision = {rl_decision}")
+        if rl_decision == 1 and send_image_callback:
+            import base64
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+            send_image_callback(image_id, b64)
+
+        if direction < 3:
+            turn_left_90()
+
     return scores
+
+
+# ── RL model interface ─────────────────────────────────────────────────────────
+
+def _score_for_direction(run_fn, image_id: str, state: list) -> float:
+    nav_fn = NAV_SCORE_MAP.get(current_model)
+    if nav_fn is not None:
+        score = nav_fn(image_id, state)
+        if score is not None:
+            return score
+    return float(run_fn(image_id, state))
+
 
 # ── Direction selection ────────────────────────────────────────────────────────
 
@@ -218,20 +230,23 @@ def face_best_direction(best_dir: int):
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 def main():
-    global is_navigating
+    global is_navigating, should_stop
     print(f"Starting navigation loop  (model: {current_model})")
     cycle = 0
     try:
         while True:
+            if should_stop:
+                should_stop = False
+                is_navigating = False
+                print("Navigation stopped by user.")
+                break
             is_navigating = True
             cycle += 1
             print(f"\n=== Cycle {cycle} ===")
 
-            print("Surveying...")
-            image_paths = survey_360()
+            print("Surveying and scoring...")
+            scores = survey_and_score()
 
-            print("Running RL inference...")
-            scores = query_rl_model(image_paths)
             print(f"  Scores: {[f'{s:.4f}' for s in scores]}  (model: {current_model})")
 
             best_dir = pick_best_direction(scores)
@@ -252,7 +267,6 @@ def main():
         is_navigating = False
         from pid_motion import _kill_motors
         _kill_motors()
-        pi.stop()
         print("Robot safely disarmed.")
 
 if __name__ == "__main__":
