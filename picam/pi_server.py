@@ -41,12 +41,6 @@ _log("RL models loaded — loading robot_rl_nav + MobileNetV2 (may take 20-40s).
 import threading
 import robot_rl_nav
 
-def nav_image_callback(image_id, b64):
-    if nav_image_queue is not None:
-        nav_image_queue.put_nowait((image_id, b64))
-
-robot_rl_nav.set_send_callback(nav_image_callback)
-
 _log("robot_rl_nav loaded — starting nav thread...")
 
 def _run_nav():
@@ -60,6 +54,16 @@ def _run_nav():
 PI_PORT = 8765
 pipeline = robot_rl_nav.pipeline  # reuse already-loaded MobileNetV2 instance
 nav_image_queue: asyncio.Queue = None  # initialised inside asyncio.run() to bind to the correct event loop
+_main_loop: asyncio.AbstractEventLoop = None
+
+def _nav_callback(image_id: str, b64: str, state: list, features: dict) -> None:
+    """Thread-safe bridge: nav thread → asyncio queue → WebSocket forwarder."""
+    if _main_loop is not None and nav_image_queue is not None:
+        _main_loop.call_soon_threadsafe(
+            nav_image_queue.put_nowait, (image_id, b64, state, features)
+        )
+
+robot_rl_nav.set_send_callback(_nav_callback)
 previous_image_path = None
 current_model = "deep_contextual_bandit"
 dataset_path = DEFAULT_DATASET.resolve()
@@ -92,12 +96,15 @@ async def handle_backend(websocket):
 
     async def forward_nav_images():
         while True:
-            image_id, b64 = await nav_image_queue.get()
+            image_id, b64, state, features = await nav_image_queue.get()
             await websocket.send(json.dumps({
                 "type": "image",
+                "source": "autonomous",
                 "format": "image/jpeg",
                 "data": b64,
-                "image_id": image_id
+                "image_id": image_id,
+                "state": state,
+                "features": features,
             }))
 
     nav_task = asyncio.create_task(forward_nav_images())
@@ -308,7 +315,8 @@ def run_capture():
 
 
 async def main():
-    global nav_image_queue
+    global nav_image_queue, _main_loop
+    _main_loop = asyncio.get_event_loop()
     nav_image_queue = asyncio.Queue()  # created inside the running event loop
     _log(f"WebSocket server ready on port {PI_PORT} — waiting for frontend connection...")
     async with websockets.serve(handle_backend, "0.0.0.0", PI_PORT):

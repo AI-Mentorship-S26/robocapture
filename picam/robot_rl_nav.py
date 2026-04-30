@@ -23,6 +23,7 @@ WIRING
   STBY=25
 """
 
+import base64
 import os
 import subprocess
 import sys
@@ -176,13 +177,19 @@ def survey_and_score() -> list[float]:
         print(f"  Dir {direction} ({direction*90}° left): model={current_model} score={score:.4f}")
         scores.append(score)
 
-        rl_decision = run_fn(image_id, state)
-        print(f"  Dir {direction}: RL decision = {rl_decision}")
-        if rl_decision == 1 and send_image_callback:
-            import base64
+        if send_image_callback is not None:
             with open(path, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode("utf-8")
-            send_image_callback(image_id, b64)
+            features_dict = {
+                "change_pct":          float(results['stage_0_5']['change_percentage']),
+                "brightness":          float(results['stage_1']['brightness']),
+                "saturation":          float(results['stage_1']['saturation']),
+                "sharpness":           float(results['stage_1']['sharpness']),
+                "edge_count":          float(results['stage_1']['edge_count']),
+                "mean_frequency":      float(results['stage_1']['mean_frequency']),
+                "embedding_magnitude": float(results['stage_2']['embedding_magnitude']),
+            }
+            send_image_callback(image_id, b64, [float(x) for x in state], features_dict)
 
         if direction < 3:
             turn_left_90()

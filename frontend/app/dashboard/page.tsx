@@ -77,6 +77,7 @@
 
     const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "saved" | "error">("idle");
     const [saveTarget, setSaveTarget] = useState<"supabase" | "pi_dataset">("supabase");
+    const [currentImageSource, setCurrentImageSource] = useState<"autonomous" | "manual">("manual");
     const [datasetSavedCount, setDatasetSavedCount] = useState(0);
     const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
     const [galleryLoading, setGalleryLoading] = useState(false);
@@ -87,6 +88,24 @@
       const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
       return () => sub.subscription.unsubscribe();
     }, []);
+
+    // Auto-save autonomous loop images to Supabase storage as they arrive.
+    // No label is assigned yet — the user can still click +R / -P to label and
+    // insert into image_vectors as usual.
+    useEffect(() => {
+      if (currentImageSource !== "autonomous" || !user?.id || !capturedImageSrc || !currentImageId) return;
+      const userId = user.id;
+      const imageId = currentImageId;
+      const src = capturedImageSrc;
+      void (async () => {
+        try {
+          const blob = await fetch(src).then((r) => r.blob());
+          await supabase.storage
+            .from("robocapture-images")
+            .upload(`${userId}/${imageId}.jpg`, blob, { contentType: "image/jpeg", upsert: false });
+        } catch { /* storage errors are non-critical for autonomous images */ }
+      })();
+    }, [currentImageSource, currentImageId, capturedImageSrc, user?.id]);
 
     useEffect(() => {
       let socket: WebSocket;
@@ -126,6 +145,7 @@
             setUploadStatus("idle");
             setSaveTarget(messageCaptureMode === "dataset" ? "pi_dataset" : "supabase");
             setCurrentCaptureMode(messageCaptureMode);
+            setCurrentImageSource(data.source === "autonomous" ? "autonomous" : "manual");
             setCurrentPipelineWouldSend(
               typeof data.pipeline_would_send === "boolean" ? data.pipeline_would_send : null
             );
