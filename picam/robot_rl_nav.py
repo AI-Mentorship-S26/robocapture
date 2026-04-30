@@ -46,7 +46,8 @@ from rl_models import (
 )
 
 # ── All motor control via pid_motion — single pigpio instance ─────────────────
-from pid_motion import turn_left_90, drive_forward, pi, STABILISE_SEC as _STAB
+from pid_motion import turn_left_90, drive_forward_with_stop, STABILISE_SEC as _STAB
+from ultrasonic import get_distance, STOP_DISTANCE_CM
 
 is_navigating = False
 should_stop = False
@@ -234,6 +235,15 @@ def face_best_direction(best_dir: int):
         turn_left_90()      # encoder-controlled
     stop(STABILISE_SEC)
 
+# ── Obstacle detection ────────────────────────────────────────────────────────
+
+def _obstacle_ahead() -> bool:
+    dist = get_distance()
+    if dist < STOP_DISTANCE_CM:
+        print(f"  [Ultrasonic] Obstacle at {dist:.1f} cm (threshold {STOP_DISTANCE_CM} cm)")
+        return True
+    return False
+
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 def main():
@@ -266,7 +276,7 @@ def main():
             print(f"  Best direction: {best_dir}")
 
             face_best_direction(best_dir)
-            drive_forward(DRIVE_FWD_SEC)
+            drive_forward_with_stop(DRIVE_FWD_SEC, _obstacle_ahead)
 
     except KeyboardInterrupt:
         print("\nInterrupted by user.")

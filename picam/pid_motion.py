@@ -141,6 +141,31 @@ def drive_forward(duration_sec: float = 1.5):
     print("  [Drive] done")
 
 
+def drive_forward_with_stop(duration_sec: float = 1.5, stop_fn=None) -> bool:
+    """Forward drive that polls stop_fn() every 50 ms. Returns True if stopped early by stop_fn."""
+    print(f"  [Drive] {duration_sec:.1f}s at PWM {DRIVE_SPEED} (obstacle-aware)")
+    pi.write(AIN1, 1); pi.write(AIN2, 0)
+    pi.set_PWM_dutycycle(PWMA, DRIVE_SPEED)
+    pi.write(BIN1, 1); pi.write(BIN2, 0)
+    pi.set_PWM_dutycycle(PWMB, DRIVE_SPEED)
+
+    end_time = time.time() + duration_sec
+    stopped_early = False
+    while time.time() < end_time:
+        if stop_fn is not None and stop_fn():
+            stopped_early = True
+            break
+        time.sleep(0.05)
+
+    _kill_motors()
+    time.sleep(0.05)
+    if stopped_early:
+        print("  [Drive] OBSTACLE — stopped early, will re-survey")
+    else:
+        print("  [Drive] done")
+    return stopped_early
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 #  TESTS
 # ══════════════════════════════════════════════════════════════════════════════
