@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from image_preprocessing import ImagePreprocessingPipeline
 from rl_models import (
     run_random,            update_random,            nav_score_random,
+    run_deep_contextual_bandit, update_deep_contextual_bandit, nav_score_deep_contextual_bandit,
     run_contextual_bandit, update_contextual_bandit,  nav_score_contextual_bandit,
     run_sarsa,             update_sarsa,              nav_score_sarsa,
     run_dqn,               update_dqn,               nav_score_dqn,
@@ -47,6 +48,11 @@ from rl_models import (
 from pid_motion import turn_left_90, drive_forward, pi, STABILISE_SEC as _STAB
 
 is_navigating = False
+should_stop = False
+
+def stop_navigation():
+    global should_stop
+    should_stop = True
 
 send_image_callback = None
 def set_send_callback(callback):
@@ -62,6 +68,7 @@ STABILISE_SEC = _STAB
 
 MODEL_MAP = {
     "random":            (run_random,            update_random),
+    "deep_contextual_bandit": (run_deep_contextual_bandit, update_deep_contextual_bandit),
     "contextual_bandit": (run_contextual_bandit,  update_contextual_bandit),
     "sarsa":             (run_sarsa,              update_sarsa),
     "dqn":               (run_dqn,               update_dqn),
@@ -73,6 +80,7 @@ MODEL_MAP = {
 
 NAV_SCORE_MAP = {
     "random":            nav_score_random,
+    "deep_contextual_bandit": nav_score_deep_contextual_bandit,
     "contextual_bandit": nav_score_contextual_bandit,
     "sarsa":             nav_score_sarsa,
     "dqn":               nav_score_dqn,
@@ -187,6 +195,18 @@ def query_rl_model(image_paths: list[str]) -> list[float]:
         print(f"  Dir {direction} ({direction*90}° left): model={current_model} score={score:.4f}")
         scores.append(score)
 
+        # Send image if RL decides to
+        rl_decision = run_fn(image_id, state)
+        print(f"  Dir {direction}: RL decision = {rl_decision}")
+        if rl_decision == 1 and send_image_callback:
+            import base64
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+            send_image_callback(image_id, b64)
+
+    
+
+
     return scores
 
 # ── Direction selection ────────────────────────────────────────────────────────
@@ -218,11 +238,16 @@ def face_best_direction(best_dir: int):
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 def main():
-    global is_navigating
+    global is_navigating, should_stop
     print(f"Starting navigation loop  (model: {current_model})")
     cycle = 0
     try:
         while True:
+            if should_stop:
+                should_stop = False
+                is_navigating = False
+                print("Navigation stopped by user.")
+                break
             is_navigating = True
             cycle += 1
             print(f"\n=== Cycle {cycle} ===")
