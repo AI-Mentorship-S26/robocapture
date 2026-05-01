@@ -1,6 +1,6 @@
 "use client";
 
-import { StateVector, WsStatus } from "@/types/dashboard";
+import { WsStatus } from "@/types/dashboard";
 import { MonitorIcon } from "./icons";
 
 const WS_COLOR: Record<WsStatus, string> = {
@@ -17,7 +17,7 @@ const WS_LABEL: Record<WsStatus, string> = {
   error: "Connection error",
 };
 
-function StateBar({ label, value, color }: { label: string; value: number; color: string }) {
+function StateBar({ label, value, display, color }: { label: string; value: number; display?: string; color: string }) {
   return (
     <div className="flex items-center gap-3">
       <span className="text-[11px] text-white/40 w-24 shrink-0">{label}</span>
@@ -27,7 +27,7 @@ function StateBar({ label, value, color }: { label: string; value: number; color
           style={{ width: `${value * 100}%`, backgroundColor: color }}
         />
       </div>
-      <span className="font-mono text-[11px] text-white/50 w-8 text-right">{value.toFixed(2)}</span>
+      <span className="font-mono text-[11px] text-white/50 w-14 text-right">{display ?? value.toFixed(2)}</span>
     </div>
   );
 }
@@ -38,7 +38,7 @@ interface Props {
   capturedImageSrc: string;
   frameNumber: number;
   receivedAgo: string;
-  stateVector: StateVector;
+  features: Record<string, number>;
   actionTaken: boolean;
   uploadStatus: "idle" | "uploading" | "saved" | "error";
   saveTarget: "supabase" | "pi_dataset";
@@ -61,7 +61,7 @@ export default function LiveFeedView({
   capturedImageSrc,
   frameNumber,
   receivedAgo,
-  stateVector,
+  features,
   actionTaken,
   uploadStatus,
   saveTarget,
@@ -279,10 +279,13 @@ export default function LiveFeedView({
           Frame Features <span className="normal-case text-white/15 ml-1">(State Vector)</span>
         </p>
         <div className="flex flex-col gap-3.5">
-          <StateBar label="Entropy" value={stateVector.entropy} color="#3B82F6" />
-          <StateBar label="Edge density" value={stateVector.edgeDensity} color="#3B82F6" />
-          <StateBar label="Novelty" value={stateVector.novelty} color="#10B981" />
-          <StateBar label="Optical flow" value={stateVector.opticalFlow} color="#F59E0B" />
+          <StateBar label="Change %" value={(features.change_pct ?? 0) / 100} display={`${(features.change_pct ?? 0).toFixed(1)}%`} color="#3B82F6" />
+          <StateBar label="Brightness" value={(features.brightness ?? 0) / 255} display={(features.brightness ?? 0).toFixed(0)} color="#F59E0B" />
+          <StateBar label="Saturation" value={(features.saturation ?? 0) / 255} display={(features.saturation ?? 0).toFixed(0)} color="#F59E0B" />
+          <StateBar label="Sharpness" value={Math.min((features.sharpness ?? 0) / 2000, 1)} display={(features.sharpness ?? 0).toFixed(0)} color="#10B981" />
+          <StateBar label="Edges" value={Math.min((features.edge_count ?? 0) / 80000, 1)} display={Math.round(features.edge_count ?? 0).toLocaleString()} color="#10B981" />
+          <StateBar label="Mean freq" value={Math.min((features.mean_frequency ?? 0), 1)} display={(features.mean_frequency ?? 0).toFixed(3)} color="#8B5CF6" />
+          <StateBar label="Emb. mag" value={Math.min((features.embedding_magnitude ?? 0) / 50, 1)} display={(features.embedding_magnitude ?? 0).toFixed(1)} color="#8B5CF6" />
           <div className="flex items-center gap-3 mt-1 pt-3 border-t border-white/[0.04]">
             <span className="text-[11px] text-white/30 w-24 shrink-0">CNN embedding</span>
             <span className="font-mono text-[11px] text-white/20">1280-dim · MobileNetV2</span>

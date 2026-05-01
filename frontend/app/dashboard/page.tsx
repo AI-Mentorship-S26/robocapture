@@ -41,6 +41,7 @@
 
   export default function DashboardPage() {
     const socketRef = useRef<WebSocket | null>(null);
+    const actionWindowRef = useRef<boolean[]>([]);
     const router = useRouter();
 
     const handleLogout = useCallback(async () => {
@@ -54,8 +55,8 @@
     const [activeModel, setActiveModel] = useState<RLModel>("deep_contextual_bandit");
     const [captureMode, setCaptureMode] = useState<"live" | "dataset">("live");
     const [currentCaptureMode, setCurrentCaptureMode] = useState<"live" | "dataset">("live");
-    const [stats, setStats] = useState({ sent: 18, skipped: 34, epsilon: 0.22 });
-    const [frameNumber, setFrameNumber] = useState(1247);
+    const [stats, setStats] = useState({ sent: 0, skipped: 0, epsilon: 0.22 });
+    const [frameNumber, setFrameNumber] = useState(0);
     const [stateVector, setStateVector] = useState<StateVector>({
       entropy: 0,
       edgeDensity: 0,
@@ -88,6 +89,48 @@
       const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
       return () => sub.subscription.unsubscribe();
     }, []);
+
+    // Seed history, sent count, and approval rate chart from Supabase on login.
+    useEffect(() => {
+      if (!user?.id) return;
+      let cancelled = false;
+
+      const load = async () => {
+        const { data: rows, error } = await supabase
+          .from("image_vectors")
+          .select("label, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(200);
+
+        if (cancelled || error || !rows?.length) return;
+
+        // History panel (newest first, already in desc order)
+        const historyEntries: HistoryEntry[] = rows.map((row, i) => {
+          const d = new Date(row.created_at);
+          const ts = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+          return { id: i, timestamp: ts, status: "sent" as const, action: (row.label === 1 ? "+R" : "-P") as FrameAction };
+        });
+        if (!cancelled) setHistory(historyEntries);
+
+        // Sent count
+        if (!cancelled) setStats((s) => ({ ...s, sent: rows.length }));
+
+        // Rolling approval rate (oldest → newest for the chart)
+        const ordered = [...rows].reverse();
+        const WINDOW = 20;
+        const approvalData = ordered.map((_, i) => {
+          const slice = ordered.slice(Math.max(0, i - WINDOW + 1), i + 1);
+          const rate = slice.filter((r) => r.label === 1).length / slice.length;
+          return { step: `S${i + 1}`, reward: parseFloat(rate.toFixed(2)) };
+        });
+        actionWindowRef.current = ordered.slice(-WINDOW).map((r) => r.label === 1);
+        if (!cancelled) setRewardData(approvalData);
+      };
+
+      load();
+      return () => { cancelled = true; };
+    }, [user?.id]);
 
     // Auto-save autonomous loop images to Supabase storage as they arrive.
     // No label is assigned yet — the user can still click +R / -P to label and
@@ -264,13 +307,15 @@
 
         if (action !== "skip") {
           setStats((s) => ({ ...s, sent: s.sent + 1 }));
-          const delta = action === "+R" ? 0.05 : -0.03;
+          actionWindowRef.current = [...actionWindowRef.current.slice(-19), action === "+R"];
+          const approvalRate = parseFloat(
+            (actionWindowRef.current.filter(Boolean).length / actionWindowRef.current.length).toFixed(2)
+          );
           setRewardData((prev) => {
-            const last = prev[prev.length - 1];
-            const newVal = Math.max(0, Math.min(1, last.reward + delta));
+            const last = prev[prev.length - 1] ?? { step: "S0", reward: 0.5 };
             return [
               ...prev.slice(-11),
-              { step: `S${parseInt(last.step.slice(1), 10) + 1}`, reward: parseFloat(newVal.toFixed(2)) },
+              { step: `S${parseInt(last.step.slice(1), 10) + 1}`, reward: approvalRate },
             ];
           });
 
@@ -487,7 +532,7 @@
                 capturedImageSrc={capturedImageSrc}
                 frameNumber={frameNumber}
                 receivedAgo={receivedAgo}
-                stateVector={stateVector}
+                features={currentFeatures}
                 actionTaken={actionTaken}
                 uploadStatus={uploadStatus}
                 saveTarget={saveTarget}

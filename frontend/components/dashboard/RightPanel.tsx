@@ -51,7 +51,7 @@ export default function RightPanel({ history, rewardData }: Props) {
       </div>
 
       <div className="border-t border-white/[0.06] px-4 py-4 shrink-0">
-        <p className="text-[10px] font-semibold text-white/20 tracking-widest uppercase mb-3">Cumulative Reward</p>
+        <p className="text-[10px] font-semibold text-white/20 tracking-widest uppercase mb-3">Rolling Approval Rate</p>
         <RewardChart data={rewardData} height={64} cellOpacityRange={[0.2, 0.5]} barRadius={2} />
         <div className="flex justify-between mt-1">
           <span className="font-mono text-[9px] text-white/15">early</span>
