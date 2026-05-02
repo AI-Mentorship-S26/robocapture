@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { NavView, RLModel } from "@/types/dashboard";
 import { MonitorIcon, GridIcon, TrendingUpIcon, ClockIcon, LogOutIcon } from "./icons";
@@ -34,7 +34,7 @@ export default function Sidebar({ activeView, activeModel, onViewChange, onModel
   return (
     <aside className="w-52 shrink-0 flex flex-col border-r border-white/[0.06] bg-[#0D0D10]/50">
       <div className="flex-1 px-3 py-4">
-        <p className="text-[9px] font-semibold text-white/20 tracking-[0.2em] uppercase px-2 mb-2">Views</p>
+        <p className="text-[9px] font-semibold text-white tracking-[0.2em] uppercase px-2 mb-2">Views</p>
         <nav className="flex flex-col gap-0.5">
           {NAV_ITEMS.map(({ id, label, Icon }) => (
             <button
@@ -43,7 +43,7 @@ export default function Sidebar({ activeView, activeModel, onViewChange, onModel
               className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs transition-colors duration-150 cursor-pointer w-full text-left ${
                 activeView === id
                   ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                  : "text-white/40 hover:text-white/70 hover:bg-white/[0.04] border border-transparent"
+                  : "text-white hover:text-white hover:bg-white/[0.04] border border-transparent"
               }`}
             >
               <Icon size={14} />{label}
@@ -53,7 +53,7 @@ export default function Sidebar({ activeView, activeModel, onViewChange, onModel
       </div>
 
       <div className="px-3 py-4 border-t border-white/[0.06]">
-        <p className="text-[9px] font-semibold text-white/20 tracking-[0.2em] uppercase px-2 mb-2">RL Model</p>
+        <p className="text-[9px] font-semibold text-white tracking-[0.2em] uppercase px-2 mb-2">RL Model</p>
         <div className="flex flex-col gap-1.5">
           {RL_MODELS.map(({ id, name, sub }) => (
             <button
@@ -62,7 +62,7 @@ export default function Sidebar({ activeView, activeModel, onViewChange, onModel
               className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all duration-150 cursor-pointer text-left w-full border ${
                 activeModel === id
                   ? "bg-blue-500/10 border-blue-500/25 text-blue-400"
-                  : "border-transparent text-white/30 hover:text-white/50 hover:bg-white/[0.03]"
+                  : "border-transparent text-white hover:text-white hover:bg-white/[0.03]"
               }`}
             >
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeModel === id ? "bg-blue-400" : "bg-white/15"}`} />
@@ -75,7 +75,7 @@ export default function Sidebar({ activeView, activeModel, onViewChange, onModel
         </div>
         <button
           onClick={onLogout}
-          className="flex items-center gap-2 px-2.5 py-2 mt-3 w-full rounded-md text-white/25 hover:text-rose-400/70 hover:bg-rose-500/[0.05] transition-colors duration-150 cursor-pointer text-xs"
+          className="flex items-center gap-2 px-2.5 py-2 mt-3 w-full rounded-md text-white hover:text-rose-400/70 hover:bg-rose-500/[0.05] transition-colors duration-150 cursor-pointer text-xs"
         >
           <LogOutIcon size={13} />Sign out
         </button>

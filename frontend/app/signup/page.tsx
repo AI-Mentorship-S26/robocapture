@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { supabase } from "@/utils/supabase/client";
@@ -61,12 +61,12 @@ export default function SignUpPage() {
       <div className="max-w-md w-full bg-white dark:bg-zinc-900 rounded-2xl shadow-xl p-8 border border-zinc-200 dark:border-zinc-800">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">RoboCapture</h1>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-2">Create an account</p>
+          <p className="text-white mt-2">Create an account</p>
         </div>
 
         <form onSubmit={handleSignUp} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Email</label>
+            <label className="block text-sm font-medium text-white mb-1">Email</label>
             <input
               type="email"
               value={email}
@@ -78,7 +78,7 @@ export default function SignUpPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Password</label>
+            <label className="block text-sm font-medium text-white mb-1">Password</label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
@@ -91,7 +91,7 @@ export default function SignUpPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-200"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-white hover:text-white"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -99,7 +99,7 @@ export default function SignUpPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Retype Password</label>
+            <label className="block text-sm font-medium text-white mb-1">Retype Password</label>
             <div className="relative">
               <input
                 type={showRetypePassword ? "text" : "password"}
@@ -112,7 +112,7 @@ export default function SignUpPage() {
               <button
                 type="button"
                 onClick={() => setShowRetypePassword(!showRetypePassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-zinc-400 hover:text-zinc-200"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-white hover:text-white"
               >
                 {showRetypePassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -133,7 +133,7 @@ export default function SignUpPage() {
           </div>
           
           <div className="text-center mt-4">
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm">
+            <p className="text-white text-sm">
               Already have an account?{' '}
               <Link href="/login" className="text-blue-500 hover:text-blue-400 font-semibold">
                 Log in
@@ -147,7 +147,7 @@ export default function SignUpPage() {
             <div className="w-full border-t border-zinc-300 dark:border-zinc-700"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white dark:bg-zinc-900 text-zinc-500">Or sign up with</span>
+            <span className="px-2 bg-white dark:bg-zinc-900 text-white">Or sign up with</span>
           </div>
         </div>
 
