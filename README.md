@@ -1,3 +1,18 @@
+To run the website and raspberry pi, there needs to be several elements you need to take care of.
+
+First, clone the repository, by opening a new folder, doing "git init", and then doing "git clone https://github.com/AI-Mentorship-S26/robocapture".
+
+## Hardware Readiness
+Second, youll need to set up the robot. For this, you'll need quite a numerous number of hardware components. First, you'll need a Raspberry Pi. In our case we used a model 4, so you'd need at least that model. Second, you'll need two FIT 0458 Motors + Encoders, which you can buy off something such as Digikey or Robotshop. 
+
+You'll also need a motor driver to control the motors, in our case we used a Dual TB6612FNG motor driver. Finally, you'll need any kind of camera that can interface with a Raspberry Pi, in our case we used a "picamera2". You'll also need two wheels to fit on the shafts of the motors. The wheels I believe were "TT wheels", they'll look yellow basically.
+
+Now the fun part: wiring the robot! You've got several components to wire here.
+
+First, let's take the motor driver and motors, and connect them. First, youll see pins "AO1" and "AO2". That's where the first motor will connect - one wire (preferably the red one) connects to AO1, and the second wire (preferably the black one) connects to AO2. Same with the second motor, BO1 connects to the red wire of the 2nd motor, and BO2 connects to that motor's black wire.
+
+Next, let's connect the Raspberry Pi to the motor driver. 
+
 Robocapture/robocapture/picam/pi_server.py
 
 2. Update this line in `appsettings.json` in the backend folder with your Pi's IP:
