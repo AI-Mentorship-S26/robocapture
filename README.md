@@ -15,6 +15,7 @@ Next, there's multiple 'control' pins on the driver that need to interface with 
 - driver AIN2 pin: GPIO 5
 - driver BIN1: GPIO 16 
 - driver BIN2: GPIO 26
+
 Finally, for the driver there’s a STNDBY pin, you want to connect that to the VCC pin. The reason for this is because it basically has 2 settings: powered ‘off’ when it has 0 voltage, nad powered ‘on’ when it received ‘high’ voltage. We want it powered on obviously, so we sent it max voltage.
 Now, let’s connect the motor encoders. First, you should note that they take power around 5 volts. So, you should connect their power pins (the red wires) to either any remaining 5V pins on the pi, or the VCC pin on the motor driver. Next, connect their ground pins (the black wires) to any GND pins on either the Pi or the motor driver.
 Now there are green and blue wires on both of the encoders - these are what the Pi ‘reads’ to see the current encoder values. Connect them to the pi like this:
@@ -22,6 +23,7 @@ Now there are green and blue wires on both of the encoders - these are what the 
 - right encoder blue pin: GPIO 27 
 - left encoder green pin: GPIO 25 
 - left encoder blue pin: GPIO 24
+
 Now every component is wired properly, but we still need a battery to actually power the whole thing. 
 You’ll need a battery roughly in the range of 6-9 volts, I’d recommend just using a 2S battery that’s 7.4V. As for the specific battery, the one I used is this: https://www.amazon.com/HRB-2200mAh-Battery-Traxxas-Revo/dp/B07NRM7HFZ/, it has a pretty good battery life so I’d recommend it. You also probably want to buy a TRX female to XT 60 connector or some other kinda connector so you can connect the battery to a LiPo charger. 
 Now as for actually powering it, you want to connect the battery power wire to the VM pin on the motor driver, as basically that is the power directed to drive the motors. You then want to connect the battery’s ground wire to the ground of the raspberry pir or motor driver (i’d recommend the motor driver).
