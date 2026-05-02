@@ -12,16 +12,16 @@ function HistoryRow({ entry }: { entry: HistoryEntry }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-mono text-[11px] text-white">{entry.timestamp}</p>
-        <p className={`text-[10px] mt-0.5 ${entry.status === "sent" ? "text-emerald-400/70" : "text-white"}`}>
+        <p className={`text-[10px] mt-0.5 ${entry.status === "sent" ? "text-emerald-300 font-semibold" : "text-white"}`}>
           {entry.status === "sent" ? "Sent" : "Skipped"}
         </p>
       </div>
       <div className="shrink-0">
         {entry.action === "+R" && (
-          <span className="font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">+R</span>
+          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/50">+R</span>
         )}
         {entry.action === "-P" && (
-          <span className="font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">−P</span>
+          <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-300 border border-rose-400/50">−P</span>
         )}
         {entry.action === null && (
           <span className="font-mono text-[10px] text-white">—</span>
