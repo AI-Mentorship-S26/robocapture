@@ -11,7 +11,9 @@ Now the fun part: wiring the robot! You've got several components to wire here.
 
 First, let's take the motor driver and motors, and connect them. First, youll see pins "AO1" and "AO2". That's where the first motor will connect - one wire (preferably the red one) connects to AO1, and the second wire (preferably the black one) connects to AO2. Same with the second motor, BO1 connects to the red wire of the 2nd motor, and BO2 connects to that motor's black wire.
 
-Next, let's connect the Raspberry Pi to the motor driver. 
+Next, let's connect the Raspberry Pi to the motor driver. Connect any 5V pin from the Raspberry Pi to the VCC pin on the Motor Driver. Connect any Raspberry Pi's GND pin to the GND pin on the motor driver as well. This will allow the Pi to "power" the driver essentially. 
+
+Next, there's multiple 'control' pins on the driver that need to interface with the Pi. These are the "PWM A", "PWM B", "AIN1", "AIN2", "BIN1", and "BIN2" pins.
 
 Robocapture/robocapture/picam/pi_server.py
 
