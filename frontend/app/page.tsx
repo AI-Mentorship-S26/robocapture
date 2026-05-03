@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import ASMRBackground from "@/components/ui/asmr-background";
@@ -9,11 +9,11 @@ export default function LandingPage() {
       <div className="flex flex-col items-center gap-8 px-6">
         {/* Logo / Title */}
         <div className="text-center">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white/90">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white">
             Robo<span className="text-blue-400">Capture</span>
           </h1>
           <div className="w-full h-px bg-linear-to-r from-transparent via-white/10 to-transparent my-6" />
-          <p className="text-sm md:text-base text-white/30 tracking-[0.4em] uppercase font-light">
+          <p className="text-sm md:text-base text-white tracking-[0.4em] uppercase font-light">
             Intelligent Image Vectorization
           </p>
         </div>
@@ -24,7 +24,7 @@ export default function LandingPage() {
           className="group relative mt-4 inline-flex items-center justify-center"
         >
           <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-xl transition-all duration-300 group-hover:bg-blue-500/30 group-hover:blur-2xl" />
-          <span className="relative inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/4 px-8 py-3 text-sm font-medium tracking-widest text-white/70 uppercase backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:bg-white/8 hover:text-white/90">
+          <span className="relative inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/4 px-8 py-3 text-sm font-medium tracking-widest text-white uppercase backdrop-blur-sm transition-all duration-300 hover:border-white/20 hover:bg-white/8 hover:text-white">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="16"
@@ -46,7 +46,7 @@ export default function LandingPage() {
         </Link>
 
         {/* Subtle footer */}
-        <p className="mt-12 text-[10px] text-white/10 tracking-widest uppercase">
+        <p className="mt-12 text-[10px] text-white tracking-widest uppercase">
           Interactive Kinetic Environment
         </p>
       </div>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { WsStatus } from "@/types/dashboard";
 import { MonitorIcon } from "./icons";
@@ -20,14 +20,14 @@ const WS_LABEL: Record<WsStatus, string> = {
 function StateBar({ label, value, display, color }: { label: string; value: number; display?: string; color: string }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="text-[11px] text-white/40 w-24 shrink-0">{label}</span>
+      <span className="text-[11px] text-white w-24 shrink-0">{label}</span>
       <div className="flex-1 h-[3px] rounded-full bg-white/[0.06] overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${value * 100}%`, backgroundColor: color }}
         />
       </div>
-      <span className="font-mono text-[11px] text-white/50 w-14 text-right">{display ?? value.toFixed(2)}</span>
+      <span className="font-mono text-[11px] text-white w-14 text-right">{display ?? value.toFixed(2)}</span>
     </div>
   );
 }
@@ -103,10 +103,10 @@ export default function LiveFeedView({
     <>
       <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm flex flex-col relative">
         <div className="px-4 py-3 border-b border-white/[0.05] flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-white/25 tracking-widest uppercase">WebSocket</span>
+          <span className="text-[10px] font-semibold text-white tracking-widest uppercase">WebSocket</span>
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-white/[0.08] bg-white/[0.04]">
             <span className={`w-1.5 h-1.5 rounded-full ${wsColor}`} />
-            <span className="text-[10px] text-white/50">{wsLabel}</span>
+            <span className="text-[10px] text-white">{wsLabel}</span>
           </div>
         </div>
 
@@ -117,7 +117,7 @@ export default function LiveFeedView({
               className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
                 captureMode === "live"
                   ? "bg-blue-500/20 border border-blue-500/40 text-blue-300"
-                  : "bg-white/[0.03] border border-white/[0.08] text-white/45 hover:text-white/70"
+                  : "bg-white/[0.03] border border-white/[0.08] text-white hover:text-white"
               }`}
             >
               Live RL
@@ -127,18 +127,18 @@ export default function LiveFeedView({
               className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors ${
                 captureMode === "dataset"
                   ? "bg-emerald-500/20 border border-emerald-500/40 text-emerald-300"
-                  : "bg-white/[0.03] border border-white/[0.08] text-white/45 hover:text-white/70"
+                  : "bg-white/[0.03] border border-white/[0.08] text-white hover:text-white"
               }`}
             >
               Dataset Collection
             </button>
-            <span className="font-mono text-[11px] text-white/35 ml-auto">
-              Dataset rows <span className="text-white/60">{datasetSavedCount}</span>
+            <span className="font-mono text-[11px] text-white ml-auto">
+              Dataset rows <span className="text-white">{datasetSavedCount}</span>
             </span>
           </div>
 
           <div className="p-3 rounded-lg bg-[#161619] border border-white/[0.06] min-h-[48px] flex items-center justify-center">
-            <p className="text-[11px] font-mono text-white/40 italic text-center">
+            <p className="text-[11px] font-mono text-white italic text-center">
               {wsMessage ? `Last message: ${wsMessage}` : "Waiting for backend response..."}
             </p>
           </div>
@@ -149,19 +149,19 @@ export default function LiveFeedView({
             ) : (
               <div className="flex flex-col items-center gap-2">
                 <div className="w-10 h-10 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
-                  <MonitorIcon size={18} className="text-white/15" />
+                  <MonitorIcon size={18} className="text-white" />
                 </div>
-                <p className="text-[11px] text-white/20">No capture yet</p>
+                <p className="text-[11px] text-white">No capture yet</p>
               </div>
             )}
           </div>
 
           <div className="flex items-center gap-3 flex-wrap justify-center">
-            <span className="font-mono text-[11px] text-white/30">
-              Frame <span className="text-white/50">#{frameNumber.toLocaleString()}</span>
-              <span className="text-white/20 mx-2">·</span>640x480
+            <span className="font-mono text-[11px] text-white">
+              Frame <span className="text-white">#{frameNumber.toLocaleString()}</span>
+              <span className="text-white mx-2">·</span>640x480
             </span>
-            <span className="text-[11px] text-white/25">Received {receivedAgo}</span>
+            <span className="text-[11px] text-white">Received {receivedAgo}</span>
             {currentCaptureMode === "dataset" && currentPipelineWouldSend !== null && (
               <span
                 className={`text-[11px] px-2 py-1 rounded-full border ${
@@ -209,8 +209,8 @@ export default function LiveFeedView({
 
         {loginRequired && (
           <div className="absolute inset-0 rounded-xl bg-[#0F0F12]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-            <p className="text-[15px] font-semibold text-white/80">Login required</p>
-            <p className="text-[12px] text-white/40 text-center px-6">
+            <p className="text-[15px] font-semibold text-white">Login required</p>
+            <p className="text-[12px] text-white text-center px-6">
               You must be logged in to use the live RL feedback flow.
             </p>
             <a
@@ -224,13 +224,13 @@ export default function LiveFeedView({
       </div>
 
       <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-5">
-        <p className="text-[10px] font-semibold text-white/20 tracking-widest uppercase mb-2">{feedbackHeading}</p>
-        <p className="text-[11px] text-white/35 mb-4">{feedbackNote}</p>
+        <p className="text-[10px] font-semibold text-white tracking-widest uppercase mb-2">{feedbackHeading}</p>
+        <p className="text-[11px] text-white mb-4">{feedbackNote}</p>
         <div className="grid grid-cols-3 gap-3">
           <button
             onClick={() => onAction("+R")}
             disabled={!capturedImageSrc || actionTaken}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/15 hover:border-emerald-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/15 hover:border-emerald-500/40 disabled:border-dashed disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
           >
             <span className="text-base font-bold leading-none">+</span>
             Reward
@@ -238,7 +238,7 @@ export default function LiveFeedView({
           <button
             onClick={() => onAction("-P")}
             disabled={!capturedImageSrc || actionTaken}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 text-sm font-semibold hover:bg-rose-500/15 hover:border-rose-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 text-sm font-semibold hover:bg-rose-500/15 hover:border-rose-500/40 disabled:border-dashed disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
           >
             <span className="text-base font-bold leading-none">-</span>
             Punishment
@@ -246,7 +246,7 @@ export default function LiveFeedView({
           <button
             onClick={() => onAction("skip")}
             disabled={!capturedImageSrc || actionTaken}
-            className="flex items-center justify-center py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white/50 text-sm font-semibold hover:bg-white/[0.07] hover:text-white/70 hover:border-white/15 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+            className="flex items-center justify-center py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white text-sm font-semibold hover:bg-white/[0.07] hover:text-white hover:border-white/15 disabled:border-dashed disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
           >
             Skip
           </button>
@@ -275,8 +275,8 @@ export default function LiveFeedView({
       )}
 
       <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-5">
-        <p className="text-[10px] font-semibold text-white/20 tracking-widest uppercase mb-4">
-          Frame Features <span className="normal-case text-white/15 ml-1">(State Vector)</span>
+        <p className="text-[10px] font-semibold text-white tracking-widest uppercase mb-4">
+          Frame Features <span className="normal-case text-white ml-1">(State Vector)</span>
         </p>
         <div className="flex flex-col gap-3.5">
           <StateBar label="Change %" value={(features.change_pct ?? 0) / 100} display={`${(features.change_pct ?? 0).toFixed(1)}%`} color="#3B82F6" />
@@ -287,8 +287,8 @@ export default function LiveFeedView({
           <StateBar label="Mean freq" value={Math.min((features.mean_frequency ?? 0), 1)} display={(features.mean_frequency ?? 0).toFixed(3)} color="#8B5CF6" />
           <StateBar label="Emb. mag" value={Math.min((features.embedding_magnitude ?? 0) / 50, 1)} display={(features.embedding_magnitude ?? 0).toFixed(1)} color="#8B5CF6" />
           <div className="flex items-center gap-3 mt-1 pt-3 border-t border-white/[0.04]">
-            <span className="text-[11px] text-white/30 w-24 shrink-0">CNN embedding</span>
-            <span className="font-mono text-[11px] text-white/20">1280-dim · MobileNetV2</span>
+            <span className="text-[11px] text-white w-24 shrink-0">CNN embedding</span>
+            <span className="font-mono text-[11px] text-white">1280-dim · MobileNetV2</span>
           </div>
         </div>
       </div>

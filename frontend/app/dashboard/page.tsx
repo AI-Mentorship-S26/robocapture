@@ -1,4 +1,4 @@
-  "use client";
+﻿  "use client";
 
   import { useCallback, useEffect, useRef, useState } from "react";
   import { useRouter } from "next/navigation";
@@ -33,8 +33,8 @@
   function StatPill({ label, value }: { label: string; value: string | number }) {
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/[0.04] border border-white/[0.06]">
-        <span className="text-[10px] text-white/30 uppercase tracking-widest">{label}</span>
-        <span className="font-mono text-xs text-white/70">{value}</span>
+        <span className="text-[10px] text-white uppercase tracking-widest">{label}</span>
+        <span className="font-mono text-xs text-white">{value}</span>
       </div>
     );
   }
@@ -465,14 +465,14 @@
             <div className="w-6 h-6 rounded-md bg-blue-500/20 border border-blue-500/30 flex items-center justify-center">
               <CpuIcon size={12} className="text-blue-400" />
             </div>
-            <span className="text-sm font-semibold text-white/90 tracking-tight">
+            <span className="text-sm font-semibold text-white tracking-tight">
               Robo<span className="text-blue-400">Capture</span>
             </span>
           </div>
 
           <div className="hidden md:flex items-center gap-2">
-            <span className="font-mono text-[11px] text-white/30">Session</span>
-            <span className="font-mono text-[11px] text-white/60">#0042 · Mars Exploration A</span>
+            <span className="font-mono text-[11px] text-white">Session</span>
+            <span className="font-mono text-[11px] text-white">#0042 · Mars Exploration A</span>
             <div className="w-px h-3 bg-white/[0.08] mx-2" />
             <StatPill label="Sent" value={stats.sent} />
             <StatPill label="Skipped" value={stats.skipped} />
@@ -480,7 +480,7 @@
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] text-white/60">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] text-white">
               <span className={`w-1.5 h-1.5 rounded-full ${wsColor}`} />
               {wsLabel}
             </div>
@@ -507,9 +507,9 @@
 
           <main className="flex-1 flex flex-col overflow-y-auto px-6 py-5 gap-5 min-w-0 bg-[#0F0F12] scrollbar-dark">
             <div className="flex items-center justify-between">
-              <h1 className="text-sm font-semibold text-white/60">
+              <h1 className="text-sm font-semibold text-white">
                 Session <span className="font-mono text-blue-400">#0042</span>
-                <span className="text-white/20 mx-2">·</span>Mars Exploration A
+                <span className="text-white mx-2">·</span>Mars Exploration A
               </h1>
             </div>
 
@@ -567,7 +567,7 @@
             />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white/60 hover:text-white hover:bg-white/20 transition-colors text-sm cursor-pointer"
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:text-white hover:bg-white/20 transition-colors text-sm cursor-pointer"
             >
               ×
             </button>
@@ -584,13 +584,13 @@
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex flex-col gap-1.5">
-                <h2 className="text-sm font-semibold text-white/90">Log out</h2>
-                <p className="text-xs text-white/40">Are you sure you want to end your session?</p>
+                <h2 className="text-sm font-semibold text-white">Log out</h2>
+                <p className="text-xs text-white">Are you sure you want to end your session?</p>
               </div>
               <div className="flex gap-2.5 justify-end">
                 <button
                   onClick={() => setShowLogoutModal(false)}
-                  className="px-4 py-1.5 rounded-lg text-xs text-white/50 border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] hover:text-white/70 transition-colors cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg text-xs text-white border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] hover:text-white transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
