@@ -230,7 +230,7 @@ export default function LiveFeedView({
           <button
             onClick={() => onAction("+R")}
             disabled={!capturedImageSrc || actionTaken}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/15 hover:border-emerald-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/15 hover:border-emerald-500/40 disabled:border-dashed disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
           >
             <span className="text-base font-bold leading-none">+</span>
             Reward
@@ -238,7 +238,7 @@ export default function LiveFeedView({
           <button
             onClick={() => onAction("-P")}
             disabled={!capturedImageSrc || actionTaken}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 text-sm font-semibold hover:bg-rose-500/15 hover:border-rose-500/40 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+            className="flex items-center justify-center gap-2 py-3 rounded-xl border border-rose-500/20 bg-rose-500/5 text-rose-400 text-sm font-semibold hover:bg-rose-500/15 hover:border-rose-500/40 disabled:border-dashed disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
           >
             <span className="text-base font-bold leading-none">-</span>
             Punishment
@@ -246,7 +246,7 @@ export default function LiveFeedView({
           <button
             onClick={() => onAction("skip")}
             disabled={!capturedImageSrc || actionTaken}
-            className="flex items-center justify-center py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white text-sm font-semibold hover:bg-white/[0.07] hover:text-white hover:border-white/15 disabled:opacity-25 disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
+            className="flex items-center justify-center py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-white text-sm font-semibold hover:bg-white/[0.07] hover:text-white hover:border-white/15 disabled:border-dashed disabled:cursor-not-allowed transition-all duration-200 cursor-pointer"
           >
             Skip
           </button>

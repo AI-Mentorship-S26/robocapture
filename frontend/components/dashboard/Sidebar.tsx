@@ -61,11 +61,11 @@ export default function Sidebar({ activeView, activeModel, onViewChange, onModel
               onClick={() => onModelChange(id)}
               className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all duration-150 cursor-pointer text-left w-full border ${
                 activeModel === id
-                  ? "bg-blue-500/10 border-blue-500/25 text-blue-400"
+                  ? "bg-blue-500/20 border-blue-400/40 text-blue-200"
                   : "border-transparent text-white hover:text-white hover:bg-white/[0.03]"
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeModel === id ? "bg-blue-400" : "bg-white/15"}`} />
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeModel === id ? "bg-blue-200" : "bg-white/15"}`} />
               <div>
                 <p className="text-[11px] font-medium leading-tight">{name}</p>
                 <p className="font-mono text-[9px] mt-0.5 opacity-60">{sub}</p>
