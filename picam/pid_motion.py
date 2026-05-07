@@ -17,7 +17,7 @@ import argparse
 #  CONFIG
 # ══════════════════════════════════════════════════════════════════════════════
 
-TICKS_FOR_90 = (2605 / 4) - 550    # ← your measured value from turn_verbose.py
+TICKS_FOR_90 = (2605 / 4) - 450    # ← your measured value from turn_verbose.py
 
 SPEED        = 150     # turn speed — must match what TICKS_FOR_90 was measured at
 DRIVE_SPEED  = 180     # forward speed
