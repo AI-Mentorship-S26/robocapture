@@ -14,7 +14,7 @@ export default function LandingPage() {
           </h1>
           <div className="w-full h-px bg-linear-to-r from-transparent via-white/10 to-transparent my-6" />
           <p className="text-sm md:text-base text-white tracking-[0.4em] uppercase font-light">
-            Intelligent Image Vectorization
+            Adaptive Visual Intelligence for Robotics
           </p>
         </div>
 
@@ -45,10 +45,7 @@ export default function LandingPage() {
           </span>
         </Link>
 
-        {/* Subtle footer */}
-        <p className="mt-12 text-[10px] text-white tracking-widest uppercase">
-          Interactive Kinetic Environment
-        </p>
+
       </div>
     </ASMRBackground>
   );
